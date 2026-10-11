@@ -38,7 +38,7 @@ from dashboard_server import bot_state, start_web_dashboard, AUTO_LW_LEVEL
 
 # ==================== CONFIG ====================
 WEB_HOST = "0.0.0.0"
-WEB_PORT = 20333
+WEB_PORT = int(os.environ.get("PORT", 20333))
 ACCOUNTS_FILE = "accounts.json"
 TOKEN_CACHE_FILE = "token_cache.json"
 DEVICES_FILE = "devices.json"
