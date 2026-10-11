@@ -270,7 +270,7 @@ bot_state = BotState()
 
 # ==================== PATHS ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE_PATH = os.path.join(BASE_DIR, "templates", "index.html")
+TEMPLATE_PATH = os.path.join(BASE_DIR, "index.html")
 ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
 
 
@@ -519,7 +519,7 @@ async def handle_index(request):
         with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
             content = f.read()
     else:
-        content = "<h1>templates/index.html not found!</h1>"
+        content = f"<h1>File not found at: {TEMPLATE_PATH}</h1>"
     return web.Response(text=content, content_type="text/html", charset="utf-8")
 
 
