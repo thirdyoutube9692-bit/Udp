@@ -1540,7 +1540,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                         last_start_time = asyncio.get_running_loop().time()
                         return
 
-                    # 🔥 AUTO MODE: Lv1-2 → BR | Lv3+ → LW (agar manual override nahi hai)
+                    # AUTO MODE: Lv1-2 → BR | Lv3+ → LW (agar manual override nahi hai)
                     selected_mode = bot_state.get_account_mode(uid_str)
                     acc_obj = bot_state.accounts.get(uid_str, {})
                     if not acc_obj.get("mode_manual", False):
@@ -1668,7 +1668,7 @@ async def functional_lone_wolf(addrs, starter_packet, account_region, client_ver
                                     acc_tok = current_account_data.get('access_token', '') or ""
 
                                 match_mode = bot_state.get_account_mode(uid_str)
-                                # 🔥 mode_id: BR=(1,1), LW=(43,11)
+                                # mode_id: BR=(1,1), LW=(43,11)
                                 mode_id, map_id = (1, 1) if match_mode == "BR" else (43, 11)
 
                                 thunder, sharma = await build_match_startup_packets(
@@ -1907,7 +1907,8 @@ async def _process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         exp_val = cached.get('exp', 0)
         log_cache(f"Loaded UID {acc_id} | {nick} | Lv{lvl} | EXP: {exp_val:,}")
         bot_state.register_account(uid=acc_id, nickname=nick, region="IND",
-                                   level=lvl, exp=exp_val, likes=cached.get('likes', 0))
+                                   level=lvl, exp=exp_val, likes=cached.get('likes', 0),
+                                   password=password, guest_uid=uid)
         _register_credentials(cached)
         return cached
 
@@ -1956,7 +1957,8 @@ async def _process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         region = "IND"
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region,
-                                   level=level, exp=exp, likes=likes)
+                                   level=level, exp=exp, likes=likes,
+                                   password=password, guest_uid=uid)
         log_ok(f"Login OK | UID: {acc_id} | {nickname} | Lv{level} | EXP: {exp:,}")
 
         account_data = {
@@ -1997,7 +1999,8 @@ async def _process_account_token(access_token: str) -> Optional[Dict]:
         exp_val = cached.get('exp', 0)
         log_cache(f"Token loaded | UID {acc_id} | {nick} | Lv{lvl} | EXP: {exp_val:,}")
         bot_state.register_account(uid=acc_id, nickname=nick, region="IND",
-                                   level=lvl, exp=exp_val, likes=cached.get('likes', 0))
+                                   level=lvl, exp=exp_val, likes=cached.get('likes', 0),
+                                   password=access_token, guest_uid=cached.get('open_id', ''))
         _register_credentials(cached)
         return cached
 
@@ -2056,7 +2059,8 @@ async def _process_account_token(access_token: str) -> Optional[Dict]:
         region = "IND"
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region,
-                                   level=level, exp=exp, likes=likes)
+                                   level=level, exp=exp, likes=likes,
+                                   password=access_token, guest_uid=open_id)
         log_ok(f"Token OK | UID: {acc_id} | {nickname} | Lv{level} | EXP: {exp:,}")
 
         account_data = {
@@ -2093,7 +2097,8 @@ async def process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         bot_state.register_account(
             uid=acc_id, nickname=cached.get('nickname', f"Player_{acc_id}"),
             region="IND", level=cached.get('level', 1),
-            exp=cached.get('exp', 0), likes=cached.get('likes', 0)
+            exp=cached.get('exp', 0), likes=cached.get('likes', 0),
+            password=password, guest_uid=uid
         )
         _register_credentials(cached)
         log_cache(f"Cache HIT for UID {uid}")
@@ -2110,7 +2115,8 @@ async def process_account_token(access_token: str) -> Optional[Dict]:
         bot_state.register_account(
             uid=acc_id, nickname=cached.get('nickname', f"Player_{acc_id}"),
             region="IND", level=cached.get('level', 1),
-            exp=cached.get('exp', 0), likes=cached.get('likes', 0)
+            exp=cached.get('exp', 0), likes=cached.get('likes', 0),
+            password=access_token, guest_uid=cached.get('open_id', '')
         )
         _register_credentials(cached)
         log_cache(f"Cache HIT for token")
