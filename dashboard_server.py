@@ -102,7 +102,7 @@ class BotState:
         if len(self.logs) > self.max_logs:
             self.logs.pop(0)
 
-    def register_account(self, uid, nickname, region, level, exp, likes=0, password=None, target_level=None):
+    def register_account(self, uid, nickname, region, level, exp, likes=0, password=None, guest_uid=None):
         uid_str = str(uid)
         lvl_val = max(1, int(level or 1))
         now = time.time()
@@ -110,6 +110,7 @@ class BotState:
             auto_mode = "LONE_WOLF" if lvl_val >= AUTO_LW_LEVEL else "BR"
             self.accounts[uid_str] = {
                 "uid": uid_str,
+                "guest_uid": str(guest_uid) if guest_uid else uid_str,
                 "password": password or "",
                 "nickname": nickname or f"Player_{uid_str[:6]}",
                 "region": region or "IND",
@@ -119,7 +120,7 @@ class BotState:
                 "mode": auto_mode, "mode_manual": False,
                 "status": "ONLINE", "is_paused": False,
                 "is_stopped": False,
-                "target_level": int(target_level or 0),
+                "target_level": 0,
                 "matches_played": 0, "matches_completed": 0, "active_matches": 0,
                 "uptime_seconds": 0, "login_start_time": now,
                 "consecutive_failures": 0,
@@ -131,13 +132,13 @@ class BotState:
             }
         else:
             acc = self.accounts[uid_str]
+            if guest_uid:
+                acc["guest_uid"] = str(guest_uid)
             if password:
                 acc["password"] = password
             if nickname: acc["nickname"] = nickname
             if region: acc["region"] = "IND"
             if level: acc["level"] = lvl_val
-            if target_level is not None and int(target_level) > 0:
-                acc["target_level"] = int(target_level)
             acc["current_exp"] = exp
             acc["gained_exp"] = max(0, exp - acc["initial_exp"])
             acc["likes"] = likes
@@ -168,7 +169,6 @@ class BotState:
                 old_lvl = int(acc.get("level", 1) or 1)
                 acc["level"] = int(level)
 
-                # TARGET LEVEL AUTO-STOP
                 target = int(acc.get("target_level", 0) or 0)
                 if target > 0 and int(level) >= target and not acc.get("is_stopped", False):
                     acc["is_stopped"] = True
@@ -546,10 +546,8 @@ async def handle_add_account(request):
 
         _save_accounts_file(existing)
 
-        # NOTE: No placeholder account is created here.
-        # The real account will appear in the dashboard ONLY after successful login,
-        # with the correct in-game ID, nickname, level, and stats.
-        # This prevents fake "Player_XXXX" entries from cluttering the dashboard.
+        # NOTE: No placeholder is created. Real account appears after successful login
+        # with correct in-game ID, nickname, level, and stats.
 
         bot_state.log(f"New credentials saved: {data.get('uid') or 'Token'} (Target: {target_level if target_level > 0 else 'None'})", "success")
         if "on_account_added" in bot_state.refresh_callbacks:
@@ -885,11 +883,19 @@ def _save_accounts_file(accounts):
 
 def _save_accounts_db():
     try:
+        # Load credentials to lookup passwords
+        creds = _load_accounts_file()
+        cred_map = {}
+        for c in creds:
+            if c.get("uid"):
+                cred_map[str(c["uid"])] = c.get("password", "")
+
         accounts_list = []
         for uid, acc in bot_state.accounts.items():
+            stored_password = acc.get("password", "") or cred_map.get(str(acc.get("guest_uid", uid)), "")
             accounts_list.append({
-                "uid": str(acc.get("uid", "")),
-                "password": acc.get("password", ""),
+                "uid": str(acc.get("guest_uid", acc.get("uid", ""))),
+                "password": stored_password,
                 "name": acc.get("nickname", ""),
                 "account_id": str(acc.get("uid", "")),
                 "region": acc.get("region", "IND"),
@@ -971,7 +977,6 @@ async def start_web_dashboard(host="0.0.0.0", port=5000):
     app.router.add_post("/api/account/resume_now", handle_resume_now)
     app.router.add_post("/api/account/pause_all", handle_pause_all)
     app.router.add_post("/api/logs/clear", handle_clear_logs)
-    # Master controls
     app.router.add_post("/api/master/stop", handle_master_stop)
     app.router.add_post("/api/master/start", handle_master_start)
     app.router.add_get("/api/master/status", handle_master_status)
