@@ -1342,6 +1342,31 @@ body::after{
 </div>
 
 <!-- ============ TOASTS ============ -->
+
+<div class="detail-modal" id="bannerModal" style="z-index:270">
+  <div class="detail-box" style="max-width:900px">
+    <div class="detail-hdr">
+      <div class="detail-avatar" style="background:var(--grad-royal)"><i class="fa-solid fa-image" style="color:#3a1a00"></i></div>
+      <div class="detail-title-wrap">
+        <div class="detail-title" id="bannerTitle">BANNER</div>
+        <div class="detail-uid" id="bannerUid">-</div>
+      </div>
+      <button class="detail-close" id="bannerClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="detail-body">
+      <div id="bannerStage" style="background:rgba(0,0,0,.5);border:1px solid var(--line);min-height:220px;display:grid;place-items:center">
+        <div style="text-align:center;color:var(--text3);font-family:'JetBrains Mono';font-size:11px"><i class="fa-solid fa-circle-notch fa-spin" style="font-size:22px;color:var(--neon)"></i><div style="margin-top:8px">RENDERING...</div></div>
+      </div>
+      <div class="detail-actions" style="margin-top:14px">
+        <button class="hud-btn" id="bannerRefresh"><i class="fa-solid fa-arrows-rotate"></i><span>RENDER AGAIN</span></button>
+        <button class="hud-btn" id="bannerDownload"><i class="fa-solid fa-download"></i><span>DOWNLOAD PNG</span></button>
+        <button class="hud-btn" id="bannerInfo"><i class="fa-solid fa-circle-info"></i><span>FIELDS</span></button>
+      </div>
+      <pre id="bannerFields" style="display:none;margin-top:12px;padding:12px;background:rgba(0,0,0,.5);border:1px solid var(--line);font-family:'JetBrains Mono';font-size:11px;color:var(--text2);overflow:auto;max-height:220px"></pre>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 <script>
 (function(){
@@ -1914,6 +1939,7 @@ function nodeHTML(a){
     +'<div class="nf-actions">'
     +'<button class="nf-btn br'+(isBR?' on':'')+'" data-action="mode" data-uid="'+esc(uid)+'" data-mode="BR"><i class="fa-solid fa-parachute-box"></i>BR</button>'
     +'<button class="nf-btn lw'+(!isBR?' on':'')+'" data-action="mode" data-uid="'+esc(uid)+'" data-mode="LONE_WOLF"><i class="fa-solid fa-crosshairs"></i>LW</button>'
+    +'<button class="nf-btn act" data-action="banner" data-uid="'+esc(uid)+'" title="View Banner" style="color:var(--gold)"><i class="fa-solid fa-image"></i></button>'
     +'<button class="nf-btn act" data-action="pause" data-uid="'+esc(uid)+'"><i class="fa-solid '+(paused?'fa-play':'fa-pause')+'"></i></button>'
     +'<button class="nf-btn act" data-action="sync" data-uid="'+esc(uid)+'"><i class="fa-solid fa-arrows-rotate"></i></button>'
     +(stopped
@@ -2723,6 +2749,7 @@ document.addEventListener('click',function(e){
     if(action==='copy-uid'){copyText(uid,'UID');return;}
     if(action==='pin'){togglePin(uid);return;}
     if(action==='note'){openNotes(uid);return;}
+    if(action==='banner'){openBanner(uid);return;}
     if(action==='pause'){togglePause(uid);return;}
     if(action==='sync'){refreshNode(uid);return;}
     if(action==='delete'){deleteNode(uid);return;}
@@ -3074,6 +3101,11 @@ if(notifAllow)notifAllow.addEventListener('click',function(){
     var pb=$('pwaBanner');if(pb)pb.classList.remove('on');
   });
 
+  var bClose=document.getElementById('bannerClose');if(bClose)bClose.addEventListener('click',closeBanner);
+  var bRefresh=document.getElementById('bannerRefresh');if(bRefresh)bRefresh.addEventListener('click',renderBannerPreview);
+  var bDownload=document.getElementById('bannerDownload');if(bDownload)bDownload.addEventListener('click',downloadBanner);
+  var bInfo=document.getElementById('bannerInfo');if(bInfo)bInfo.addEventListener('click',showBannerFields);
+  var bModal=document.getElementById('bannerModal');if(bModal)bModal.addEventListener('click',function(e){if(e.target.id==='bannerModal')closeBanner();});
   // Load saved theme
   var savedTheme=LS.get('theme','titanium');
   if(savedTheme&&savedTheme!=='titanium'){
@@ -3139,6 +3171,63 @@ window.stopAccount=stopAccount;
 window.unstopAccount=unstopAccount;
 window.openDetail=openDetail;
 window.closeDetail=closeDetail;
+
+
+var _bannerCurrentUid=null;
+function openBanner(uid){
+  _bannerCurrentUid=String(uid);
+  var bm=document.getElementById('bannerModal');if(bm)bm.classList.add('on');
+  var bt=document.getElementById('bannerTitle');if(bt)bt.textContent='BANNER';
+  var bu=document.getElementById('bannerUid');if(bu)bu.textContent=uid;
+  var bf=document.getElementById('bannerFields');if(bf){bf.style.display='none';bf.textContent='';}
+  renderBannerPreview();
+}
+function closeBanner(){
+  var bm=document.getElementById('bannerModal');if(bm)bm.classList.remove('on');
+  _bannerCurrentUid=null;
+}
+function renderBannerPreview(){
+  if(!_bannerCurrentUid)return;
+  var stage=document.getElementById('bannerStage');if(!stage)return;
+  stage.innerHTML='<div style="text-align:center;color:var(--text3);font-family:JetBrains Mono;font-size:11px"><i class="fa-solid fa-circle-notch fa-spin" style="font-size:22px;color:var(--neon)"></i><div style="margin-top:8px">RENDERING...</div></div>';
+  var url='/api/banner/'+encodeURIComponent(_bannerCurrentUid)+'.png?t='+Date.now();
+  var img=new Image();
+  img.onload=function(){
+    stage.innerHTML='';
+    img.style.maxWidth='100%';img.style.height='auto';
+    img.style.display='block';img.style.margin='0 auto';
+    img.style.filter='drop-shadow(0 0 30px rgba(0,240,255,.3))';
+    stage.appendChild(img);
+  };
+  img.onerror=async function(){
+    try{
+      var r=await fetch('/api/banner/'+encodeURIComponent(_bannerCurrentUid)+'.png');
+      var j=await r.json();
+      stage.innerHTML='<div style="text-align:center;color:var(--err);font-family:JetBrains Mono;font-size:11px;padding:20px"><div>RENDER FAILED</div><div style="color:var(--text3);margin-top:6px">'+((j&&j.error)||'unknown')+'</div></div>';
+    }catch(e){stage.innerHTML='<div style="color:var(--err);padding:20px">BANNER UNAVAILABLE</div>';}
+  };
+  img.src=url;
+}
+async function showBannerFields(){
+  if(!_bannerCurrentUid)return;
+  var bf=document.getElementById('bannerFields');if(!bf)return;
+  if(bf.style.display!=='none'){bf.style.display='none';return;}
+  bf.style.display='block';bf.textContent='loading...';
+  try{
+    var r=await fetch('/api/banner_info/'+encodeURIComponent(_bannerCurrentUid));
+    var j=await r.json();
+    bf.textContent=JSON.stringify(j,null,2);
+  }catch(e){bf.textContent='fetch failed: '+e;}
+}
+function downloadBanner(){
+  if(!_bannerCurrentUid)return;
+  var a=document.createElement('a');
+  a.href='/api/banner/'+encodeURIComponent(_bannerCurrentUid)+'.png?t='+Date.now();
+  a.download='banner_'+_bannerCurrentUid+'.png';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+window.openBanner=openBanner;
+window.closeBanner=closeBanner;
 
 })();
 </script>

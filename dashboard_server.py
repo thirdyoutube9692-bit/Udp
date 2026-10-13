@@ -4,6 +4,8 @@ RAJA OFFICIAL - Dashboard Server (IND Region)
 Master Stop / Per-Account Stop / Target Level Auto-Stop / accounts_db.json
 """
 
+from banner_renderer import render_banner_for_uid
+
 import asyncio
 import json
 import os
@@ -860,6 +862,49 @@ async def handle_remove_all(request):
         return web.json_response({"status": "error", "error": str(e)}, status=400)
 
 
+
+# ==================== BANNER ====================
+async def handle_banner(request):
+    uid = request.match_info.get("uid", "").strip()
+    if not uid:
+        return web.json_response({"status": "error", "error": "uid required"}, status=400)
+    try:
+        png = await render_banner_for_uid(uid, bot_state)
+    except LookupError as e:
+        return web.json_response({"status": "error", "error": str(e)}, status=404)
+    except Exception as e:
+        bot_state.log(f"Banner render failed for {uid}: {e}", "error", uid)
+        return web.json_response({"status": "error", "error": str(e)}, status=500)
+    return web.Response(body=png, content_type="image/png",
+                        headers={"Cache-Control": "no-store"})
+
+
+async def handle_banner_info(request):
+    uid = request.match_info.get("uid", "").strip()
+    creds = bot_state.account_credentials.get(uid)
+    if not creds:
+        for v in bot_state.account_credentials.values():
+            if str(v.get("account_id", "")) == uid:
+                creds = v
+                break
+    if not creds:
+        return web.json_response({"status": "error", "error": "not in sessions"}, status=404)
+    from banner_renderer import fetch_profile, extract_fields
+    import asyncio as _asyncio
+    loop = _asyncio.get_running_loop()
+    info = await loop.run_in_executor(
+        None,
+        lambda: fetch_profile(
+            creds.get("token"),
+            creds.get("server_url") or creds.get("url"),
+            int(creds.get("account_id")),
+        ),
+    )
+    if info is None:
+        return web.json_response({"status": "error", "error": "no profile"}, status=502)
+    return web.json_response({"status": "ok", "uid": uid, "fields": extract_fields(info)})
+
+
 # ==================== HELPERS ====================
 def _load_accounts_file():
     if not os.path.exists(ACCOUNTS_FILE): return []
@@ -966,6 +1011,8 @@ async def start_web_dashboard(host="0.0.0.0", port=5000):
     app.router.add_get("/", handle_index)
     app.router.add_get("/api/session", handle_session_info)
     app.router.add_get("/api/stats", handle_get_stats)
+    app.router.add_get("/api/banner/{uid}.png", handle_banner)
+    app.router.add_get("/api/banner_info/{uid}", handle_banner_info)
     app.router.add_post("/api/account/add", handle_add_account)
     app.router.add_post("/api/account/bulk_add", handle_bulk_add)
     app.router.add_post("/api/account/delete", handle_delete_account)

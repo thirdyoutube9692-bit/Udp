@@ -1,4 +1,3 @@
-
 # language: Python, file: banner_renderer.py
 # FF profile banner generator — piggybacks on master.py's live session.
 # Uses bot_state.account_credentials to grab JWT + server_url per UID,

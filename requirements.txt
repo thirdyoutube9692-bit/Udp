@@ -5,4 +5,4 @@ protobuf-decoder
 protobuf
 requests
 aiohttp
-Pillow              ← NEW
+Pillow
