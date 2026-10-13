@@ -102,7 +102,7 @@ class BotState:
         if len(self.logs) > self.max_logs:
             self.logs.pop(0)
 
-    def register_account(self, uid, nickname, region, level, exp, likes=0, password=None):
+    def register_account(self, uid, nickname, region, level, exp, likes=0, password=None, target_level=None):
         uid_str = str(uid)
         lvl_val = max(1, int(level or 1))
         now = time.time()
@@ -119,7 +119,7 @@ class BotState:
                 "mode": auto_mode, "mode_manual": False,
                 "status": "ONLINE", "is_paused": False,
                 "is_stopped": False,
-                "target_level": 0,
+                "target_level": int(target_level or 0),
                 "matches_played": 0, "matches_completed": 0, "active_matches": 0,
                 "uptime_seconds": 0, "login_start_time": now,
                 "consecutive_failures": 0,
@@ -136,6 +136,8 @@ class BotState:
             if nickname: acc["nickname"] = nickname
             if region: acc["region"] = "IND"
             if level: acc["level"] = lvl_val
+            if target_level is not None and int(target_level) > 0:
+                acc["target_level"] = int(target_level)
             acc["current_exp"] = exp
             acc["gained_exp"] = max(0, exp - acc["initial_exp"])
             acc["likes"] = likes
@@ -166,7 +168,7 @@ class BotState:
                 old_lvl = int(acc.get("level", 1) or 1)
                 acc["level"] = int(level)
 
-                # ============ TARGET LEVEL AUTO-STOP ============
+                # TARGET LEVEL AUTO-STOP
                 target = int(acc.get("target_level", 0) or 0)
                 if target > 0 and int(level) >= target and not acc.get("is_stopped", False):
                     acc["is_stopped"] = True
@@ -179,7 +181,6 @@ class BotState:
                         f"🎯 {acc.get('nickname','Unknown')} ({uid_str}) REACHED TARGET LV.{target} — Auto-stopped!",
                         "success", uid_str
                     )
-                # =================================================
 
                 if not acc.get("mode_manual", False):
                     new_lvl = int(level)
@@ -237,8 +238,6 @@ class BotState:
         if uid_str in self.accounts:
             if self.accounts[uid_str].get("is_stopped", False):
                 self.accounts[uid_str]["status"] = "STOPPED"
-                return
-            if self.accounts[uid_str].get("status") == "LOGIN_FAILED":
                 return
             self.accounts[uid_str]["status"] = status
             if active_matches is not None:
@@ -535,7 +534,7 @@ async def handle_add_account(request):
             if not uid or not pwd:
                 return web.json_response({"status": "error", "error": "UID and Password required"})
             existing = [acc for acc in existing if str(acc.get("uid")) != uid]
-            existing.append({"uid": uid, "password": pwd})
+            existing.append({"uid": uid, "password": pwd, "target_level": target_level})
         elif "token" in data:
             token = str(data["token"]).strip()
             if not token:
@@ -547,48 +546,12 @@ async def handle_add_account(request):
 
         _save_accounts_file(existing)
 
-        # Pre-store password + target_level
-        if uid:
-            if uid not in bot_state.accounts:
-                bot_state.accounts[uid] = {
-                    "uid": uid,
-                    "password": pwd,
-                    "nickname": "",
-                    "region": "IND",
-                    "level": 0,
-                    "initial_exp": 0,
-                    "current_exp": 0,
-                    "gained_exp": 0,
-                    "likes": 0,
-                    "mode": "BR",
-                    "mode_manual": False,
-                    "status": "PENDING",
-                    "is_paused": False,
-                    "is_stopped": False,
-                    "target_level": target_level,
-                    "matches_played": 0,
-                    "matches_completed": 0,
-                    "active_matches": 0,
-                    "uptime_seconds": 0,
-                    "login_start_time": time.time(),
-                    "consecutive_failures": 0,
-                    "login_failures": 0,
-                    "pause_until": None,
-                    "pause_till_4am": False,
-                    "last_match_time": None,
-                    "last_match_failed": None,
-                    "last_updated": time.strftime("%H:%M:%S"),
-                    "_last_lvl": 0,
-                }
-            else:
-                bot_state.accounts[uid]["password"] = pwd
-                bot_state.accounts[uid]["target_level"] = target_level
-                if bot_state.accounts[uid].get("status") == "LOGIN_FAILED":
-                    bot_state.accounts[uid]["status"] = "PENDING"
-                    bot_state.accounts[uid]["is_stopped"] = False
-                    bot_state.accounts[uid]["login_failures"] = 0
+        # NOTE: No placeholder account is created here.
+        # The real account will appear in the dashboard ONLY after successful login,
+        # with the correct in-game ID, nickname, level, and stats.
+        # This prevents fake "Player_XXXX" entries from cluttering the dashboard.
 
-        bot_state.log(f"New account added: {data.get('uid') or 'Token'} (Target: {target_level if target_level > 0 else 'None'})", "success")
+        bot_state.log(f"New credentials saved: {data.get('uid') or 'Token'} (Target: {target_level if target_level > 0 else 'None'})", "success")
         if "on_account_added" in bot_state.refresh_callbacks:
             asyncio.create_task(bot_state.refresh_callbacks["on_account_added"](data))
         _save_accounts_db()
@@ -864,8 +827,7 @@ async def handle_unstop_account(request):
         if uid in bot_state.accounts:
             bot_state.accounts[uid]["is_stopped"] = False
             bot_state.accounts[uid]["is_paused"] = False
-            bot_state.accounts[uid]["status"] = "PENDING"
-            bot_state.accounts[uid]["login_failures"] = 0
+            bot_state.accounts[uid]["status"] = "ONLINE"
             if "on_account_added" in bot_state.refresh_callbacks:
                 creds = _load_accounts_file()
                 for c in creds:
