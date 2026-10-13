@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 POOL_FILE = pathlib.Path(__file__).parent / "banner_pool.json"
 
 DEFAULT_POOL = [
-    {"uid": "8136263047", "password": "B4C932E05745CDCF4632C4926FE921D26591E8E847E7BF7BAC8822231DA8BCB9"},
+    {"uid": "8187459126", "password": "FFDEVILFIBOB2Z034ISX0P6NZ"},
     {"uid": "8173105159", "password": "B4C932E05745CDCF4632C4926FE921D26591E8E847E7BF7BAC8822231DA8BCB9"},
 ]
 
