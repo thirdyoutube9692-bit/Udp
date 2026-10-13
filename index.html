@@ -928,59 +928,6 @@ body::after{
   .pod.p1 .pe{font-size:20px}
   .pod .pod-mini{display:none}
 }
-/* ============ TEXT GLOW ============ */
-.hud-name,.hero-title,.panel-hdr h3,.detail-title,.modal-box h3,.settings-hdr h3,.notes-box h3{
-  text-shadow:0 0 10px currentColor, 0 0 20px currentColor !important;
-}
-.hud-name,.hero-title{
-  filter:drop-shadow(0 0 20px rgba(255,215,0,.8)) drop-shadow(0 0 40px rgba(0,240,255,.5)) !important;
-}
-.panel-hdr h3{
-  filter:drop-shadow(0 0 12px var(--neon)) drop-shadow(0 0 24px rgba(0,240,255,.6)) !important;
-}
-.detail-title{
-  filter:drop-shadow(0 0 15px rgba(0,240,255,.7)) !important;
-}
-.st-val,.hero-stat .v{
-  filter:drop-shadow(0 0 12px rgba(0,240,255,.8)) drop-shadow(0 0 24px rgba(0,240,255,.4)) !important;
-  text-shadow:0 0 20px rgba(0,240,255,.6) !important;
-}
-.pod .pn{
-  filter:drop-shadow(0 0 10px rgba(0,240,255,.6)) !important;
-}
-.pod.p1 .pn{
-  filter:drop-shadow(0 0 12px rgba(255,215,0,.8)) !important;
-}
-.pod .pe{
-  filter:drop-shadow(0 0 12px var(--matrix)) drop-shadow(0 0 24px rgba(0,255,65,.5)) !important;
-}
-.pod.p1 .pe{
-  filter:drop-shadow(0 0 15px #ffd700) drop-shadow(0 0 30px rgba(255,215,0,.7)) !important;
-}
-.gauge-val{
-  text-shadow:0 0 15px #00f0ff, 0 0 30px rgba(0,240,255,.6) !important;
-}
-.gauge-lbl{
-  text-shadow:0 0 8px var(--neon) !important;
-}
-.node-name{
-  text-shadow:0 0 8px rgba(0,240,255,.5) !important;
-}
-.node-avatar{
-  text-shadow:0 0 10px var(--neon), 0 0 20px rgba(0,240,255,.6) !important;
-}
-.lvl-pct{
-  text-shadow:0 0 12px currentColor, 0 0 24px currentColor !important;
-}
-.toast{
-  text-shadow:0 0 6px rgba(0,240,255,.4) !important;
-}
-.status-strip .ss b{
-  text-shadow:0 0 10px currentColor !important;
-}
-.master-banner{
-  text-shadow:0 0 10px rgba(255,255,255,.8), 0 0 20px rgba(255,255,255,.5) !important;
-}
 </style>
 </head>
 <body>
@@ -1367,10 +1314,9 @@ body::after{
       <div id="tabSingle">
         <div class="field"><label>AUTH TYPE</label><select id="authType"><option value="guest">GUEST (UID + PASSWORD)</option><option value="token">ACCESS TOKEN</option></select></div>
         <div id="guestFields">
-  <div class="field"><label>UID</label><input id="in-uid" placeholder="Enter UID" autocomplete="off"></div>
-  <div class="field"><label>PASSWORD</label><input id="in-pass" type="password" placeholder="••••••••" autocomplete="off"></div>
-  <div class="field"><label>TARGET LEVEL (OPTIONAL – AUTO-STOP AT THIS LEVEL)</label><input id="in-target" type="number" placeholder="e.g. 50 (leave empty for no target)" min="1" max="100"></div>
-</div>
+          <div class="field"><label>UID</label><input id="in-uid" placeholder="Enter UID" autocomplete="off"></div>
+          <div class="field"><label>PASSWORD</label><input id="in-pass" type="password" placeholder="••••••••" autocomplete="off"></div>
+        </div>
         <div id="tokenFields" style="display:none"><div class="field"><label>ACCESS TOKEN</label><textarea id="in-tok" placeholder="Paste token..."></textarea></div></div>
       </div>
       <div id="tabBulk" style="display:none">
@@ -2382,9 +2328,6 @@ async function submitAdd(e){
       var pass=$('in-pass').value.trim();
       if(!uid||!pass){toast('UID & PASSWORD REQUIRED','err');return;}
       payload={uid:uid,password:pass};
-      var targetEl=$('in-target');
-var targetLvl=targetEl?parseInt(targetEl.value)||0:0;
-payload.target_level=targetLvl;
     } else {
       var tok=$('in-tok').value.trim();
       if(!tok){toast('TOKEN REQUIRED','err');return;}
