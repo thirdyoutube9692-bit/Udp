@@ -123,6 +123,7 @@ class BotState:
                 "matches_played": 0, "matches_completed": 0, "active_matches": 0,
                 "uptime_seconds": 0, "login_start_time": now,
                 "consecutive_failures": 0,
+                "login_failures": 0,
                 "pause_until": None, "pause_till_4am": False,
                 "last_match_time": None, "last_match_failed": None,
                 "last_updated": time.strftime("%H:%M:%S"),
@@ -151,6 +152,7 @@ class BotState:
                 acc["status"] = "ONLINE"
                 acc["login_start_time"] = now
             acc["consecutive_failures"] = 0
+            acc["login_failures"] = 0
             acc["last_updated"] = time.strftime("%H:%M:%S")
         self.recalc_totals()
 
@@ -235,6 +237,8 @@ class BotState:
         if uid_str in self.accounts:
             if self.accounts[uid_str].get("is_stopped", False):
                 self.accounts[uid_str]["status"] = "STOPPED"
+                return
+            if self.accounts[uid_str].get("status") == "LOGIN_FAILED":
                 return
             self.accounts[uid_str]["status"] = status
             if active_matches is not None:
@@ -543,22 +547,22 @@ async def handle_add_account(request):
 
         _save_accounts_file(existing)
 
-        # Pre-store password + target_level so it survives before login
+        # Pre-store password + target_level
         if uid:
             if uid not in bot_state.accounts:
                 bot_state.accounts[uid] = {
                     "uid": uid,
                     "password": pwd,
-                    "nickname": f"Player_{uid[:6]}",
+                    "nickname": "",
                     "region": "IND",
-                    "level": 1,
+                    "level": 0,
                     "initial_exp": 0,
                     "current_exp": 0,
                     "gained_exp": 0,
                     "likes": 0,
                     "mode": "BR",
                     "mode_manual": False,
-                    "status": "CONNECTING",
+                    "status": "PENDING",
                     "is_paused": False,
                     "is_stopped": False,
                     "target_level": target_level,
@@ -568,16 +572,21 @@ async def handle_add_account(request):
                     "uptime_seconds": 0,
                     "login_start_time": time.time(),
                     "consecutive_failures": 0,
+                    "login_failures": 0,
                     "pause_until": None,
                     "pause_till_4am": False,
                     "last_match_time": None,
                     "last_match_failed": None,
                     "last_updated": time.strftime("%H:%M:%S"),
-                    "_last_lvl": 1,
+                    "_last_lvl": 0,
                 }
             else:
                 bot_state.accounts[uid]["password"] = pwd
                 bot_state.accounts[uid]["target_level"] = target_level
+                if bot_state.accounts[uid].get("status") == "LOGIN_FAILED":
+                    bot_state.accounts[uid]["status"] = "PENDING"
+                    bot_state.accounts[uid]["is_stopped"] = False
+                    bot_state.accounts[uid]["login_failures"] = 0
 
         bot_state.log(f"New account added: {data.get('uid') or 'Token'} (Target: {target_level if target_level > 0 else 'None'})", "success")
         if "on_account_added" in bot_state.refresh_callbacks:
@@ -855,7 +864,8 @@ async def handle_unstop_account(request):
         if uid in bot_state.accounts:
             bot_state.accounts[uid]["is_stopped"] = False
             bot_state.accounts[uid]["is_paused"] = False
-            bot_state.accounts[uid]["status"] = "ONLINE"
+            bot_state.accounts[uid]["status"] = "PENDING"
+            bot_state.accounts[uid]["login_failures"] = 0
             if "on_account_added" in bot_state.refresh_callbacks:
                 creds = _load_accounts_file()
                 for c in creds:
@@ -930,6 +940,7 @@ def _save_accounts_db():
                 "is_stopped": bool(acc.get("is_stopped", False)),
                 "mode": acc.get("mode", "BR"),
                 "target_level": int(acc.get("target_level", 0) or 0),
+                "login_failures": int(acc.get("login_failures", 0) or 0),
                 "matches_played": int(acc.get("matches_played", 0) or 0),
                 "matches_completed": int(acc.get("matches_completed", 0) or 0),
                 "last_updated": acc.get("last_updated", "")
