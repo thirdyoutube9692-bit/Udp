@@ -148,15 +148,43 @@ def fetch_profile(jwt: str, server_url: str, target_uid: int) -> Optional[Accoun
             if d2:
                 candidates.append(d2)
 
+    # Parse every candidate, keep the one with most populated fields.
+    best = None
+    best_score = 0
     for blob in candidates:
         p = AccountPersonalShowInfo()
         try:
             p.ParseFromString(blob)
-            if p.HasField("basic_info") and p.basic_info.nickname:
-                return p
         except Exception:
             continue
-    return None
+        if not p.HasField("basic_info"):
+            continue
+        b = p.basic_info
+        score = 0
+        if b.nickname:  score += 1
+        if b.level:     score += 1
+        if b.head_pic:  score += 3   # weighted — avatar is what we need most
+        if b.banner_id: score += 3   # weighted — banner too
+        if b.pin_id:    score += 1
+        if b.HasField("prime_privilege_detail") and b.prime_privilege_detail.prime_level:
+            score += 1
+        # bonus if the parsed size looks plausible (>100 bytes)
+        if len(blob) > 100:
+            score += 1
+
+        print("[banner] candidate offset parse: score=%d nickname=%r level=%d avatar=%d banner=%d pin=%d"
+              % (score, b.nickname[:20] if b.nickname else "", b.level,
+                 b.head_pic, b.banner_id, b.pin_id))
+
+        if score > best_score:
+            best_score = score
+            best = p
+
+    if best is None:
+        print("[banner] no candidate parsed successfully")
+    else:
+        print("[banner] best parse score=%d" % best_score)
+    return best
 
 
 def extract_fields(info: AccountPersonalShowInfo) -> dict:
