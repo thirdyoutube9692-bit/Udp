@@ -1316,6 +1316,7 @@ body::after{
         <div id="guestFields">
           <div class="field"><label>UID</label><input id="in-uid" placeholder="Enter UID" autocomplete="off"></div>
           <div class="field"><label>PASSWORD</label><input id="in-pass" type="password" placeholder="••••••••" autocomplete="off"></div>
+          <div class="field"><label>TARGET LEVEL (OPTIONAL – AUTO-STOP AT THIS LEVEL)</label><input id="in-target" type="number" placeholder="e.g. 50 (leave empty for no target)" min="1" max="100"></div>
         </div>
         <div id="tokenFields" style="display:none"><div class="field"><label>ACCESS TOKEN</label><textarea id="in-tok" placeholder="Paste token..."></textarea></div></div>
       </div>
@@ -2328,6 +2329,9 @@ async function submitAdd(e){
       var pass=$('in-pass').value.trim();
       if(!uid||!pass){toast('UID & PASSWORD REQUIRED','err');return;}
       payload={uid:uid,password:pass};
+      var targetEl=$('in-target');
+      var targetLvl=targetEl?parseInt(targetEl.value)||0:0;
+      payload.target_level=targetLvl;
     } else {
       var tok=$('in-tok').value.trim();
       if(!tok){toast('TOKEN REQUIRED','err');return;}
