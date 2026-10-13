@@ -902,7 +902,15 @@ async def handle_banner_info(request):
     )
     if info is None:
         return web.json_response({"status": "error", "error": "no profile"}, status=502)
-    return web.json_response({"status": "ok", "uid": uid, "fields": extract_fields(info)})
+    extracted = extract_fields(info)
+    basic_dump = str(info.basic_info) if info.HasField("basic_info") else None
+    return web.json_response({
+        "status": "ok",
+        "uid": uid,
+        "fields": extracted,
+        "basic_info_dump": basic_dump,
+        "has_basic_info": info.HasField("basic_info"),
+    })
 
 
 # ==================== HELPERS ====================

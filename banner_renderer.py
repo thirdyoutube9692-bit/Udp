@@ -103,7 +103,7 @@ def _aes_decrypt(blob: bytes) -> Optional[bytes]:
 
 
 # ---------- profile fetch ----------
-def fetch_profile(jwt: str, server_url: str, target_uid: int) -> Optional[AccountPersonalShowInfo]:
+def fetch_profile(jwt: str, server_url: str, target_uid: int, release_version: str = "OB55") -> Optional[AccountPersonalShowInfo]:
     body = _aes_encrypt(_build_proto({1: target_uid, 2: 10, 3: 1, 4: 1, 5: 1, 6: 1}))
 
     base = (server_url or "").rstrip("/")
@@ -120,7 +120,7 @@ def fetch_profile(jwt: str, server_url: str, target_uid: int) -> Optional[Accoun
         "X-GA-SV": "1790187833",
         "Authorization": "Bearer " + jwt,
         "X-GA": "v1 1",
-        "ReleaseVersion": "OB55",
+        "ReleaseVersion": release_version,
         "Content-Type": "application/x-www-form-urlencoded",
         "X-Unity-Version": "2018.4.12f1",
     }
@@ -136,6 +136,8 @@ def fetch_profile(jwt: str, server_url: str, target_uid: int) -> Optional[Accoun
         return None
 
     content = r.content
+    print("[banner] profile resp: status=%d len=%d release=%s"
+          % (r.status_code, len(content), release_version))
 
     candidates = [content]
     dec = _aes_decrypt(content)
@@ -415,18 +417,29 @@ async def render_banner_for_uid(uid: str, bot_state, overrides=None) -> bytes:
                 creds = v
                 break
 
+    # Fallback: pool session for arbitrary UIDs
     if not creds:
-        raise LookupError("uid %s not in running sessions" % uid)
+        try:
+            from banner_pool import get_pool_creds
+            pool = await get_pool_creds()
+            if pool:
+                creds = pool
+        except Exception as e:
+            print("[banner] pool fallback failed: %s" % e)
 
-    jwt        = creds.get("token")
-    server_url = creds.get("server_url") or creds.get("url")
-    acc_id     = creds.get("account_id")
+    if not creds:
+        raise LookupError("uid %s not in sessions and pool unavailable" % uid)
 
-    if not jwt or not acc_id:
-        raise RuntimeError("uid %s has no JWT - is the worker logged in?" % uid)
+    jwt             = creds.get("token")
+    server_url      = creds.get("server_url") or creds.get("url")
+    release_version = creds.get("release_version") or "OB55"
+    target_id       = int(uid)
+
+    if not jwt:
+        raise RuntimeError("uid %s has no JWT - worker not logged in?" % uid)
 
     def _work():
-        info = fetch_profile(jwt, server_url, int(acc_id))
+        info = fetch_profile(jwt, server_url, target_id, release_version)
         if info is None:
             raise RuntimeError("GetPlayerPersonalShow returned no profile")
         return render_banner(info, overrides=overrides)
