@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 RAJA OFFICIAL - Dashboard Server (IND Region)
-Master Stop / Per-Account Stop / accounts_db.json / Auto-Backup
+Master Stop / Per-Account Stop / Target Level Auto-Stop / accounts_db.json
 """
 
 import asyncio
@@ -102,7 +102,7 @@ class BotState:
         if len(self.logs) > self.max_logs:
             self.logs.pop(0)
 
-    def register_account(self, uid, nickname, region, level, exp, likes=0):
+    def register_account(self, uid, nickname, region, level, exp, likes=0, password=None):
         uid_str = str(uid)
         lvl_val = max(1, int(level or 1))
         now = time.time()
@@ -110,6 +110,7 @@ class BotState:
             auto_mode = "LONE_WOLF" if lvl_val >= AUTO_LW_LEVEL else "BR"
             self.accounts[uid_str] = {
                 "uid": uid_str,
+                "password": password or "",
                 "nickname": nickname or f"Player_{uid_str[:6]}",
                 "region": region or "IND",
                 "level": lvl_val,
@@ -118,6 +119,7 @@ class BotState:
                 "mode": auto_mode, "mode_manual": False,
                 "status": "ONLINE", "is_paused": False,
                 "is_stopped": False,
+                "target_level": 0,
                 "matches_played": 0, "matches_completed": 0, "active_matches": 0,
                 "uptime_seconds": 0, "login_start_time": now,
                 "consecutive_failures": 0,
@@ -128,6 +130,8 @@ class BotState:
             }
         else:
             acc = self.accounts[uid_str]
+            if password:
+                acc["password"] = password
             if nickname: acc["nickname"] = nickname
             if region: acc["region"] = "IND"
             if level: acc["level"] = lvl_val
@@ -159,6 +163,22 @@ class BotState:
             if level is not None and level > 0:
                 old_lvl = int(acc.get("level", 1) or 1)
                 acc["level"] = int(level)
+
+                # ============ TARGET LEVEL AUTO-STOP ============
+                target = int(acc.get("target_level", 0) or 0)
+                if target > 0 and int(level) >= target and not acc.get("is_stopped", False):
+                    acc["is_stopped"] = True
+                    acc["status"] = "TARGET_REACHED"
+                    worker = self.account_workers.get(uid_str)
+                    if worker and not worker.done():
+                        worker.cancel()
+                        self.account_workers.pop(uid_str, None)
+                    self.log(
+                        f"🎯 {acc.get('nickname','Unknown')} ({uid_str}) REACHED TARGET LV.{target} — Auto-stopped!",
+                        "success", uid_str
+                    )
+                # =================================================
+
                 if not acc.get("mode_manual", False):
                     new_lvl = int(level)
                     acc["mode"] = "LONE_WOLF" if new_lvl >= AUTO_LW_LEVEL else "BR"
@@ -488,6 +508,7 @@ async def handle_get_stats(request):
         "total_accounts": len(bot_state.accounts),
         "total_matches": bot_state.total_matches,
         "total_gained_exp": bot_state.total_gained_exp,
+        "total_active_matches": sum(int(a.get("active_matches", 0) or 0) for a in accounts_data),
         "accounts": accounts_data,
         "logs": bot_state.logs[-60:],
         "uptime": int(time.time() - bot_state.start_time),
@@ -500,6 +521,10 @@ async def handle_add_account(request):
     try:
         data = await request.json()
         existing = _load_accounts_file()
+        uid = ""
+        pwd = ""
+        target_level = int(data.get("target_level", 0) or 0)
+
         if "uid" in data and "password" in data:
             uid = str(data["uid"]).strip()
             pwd = str(data["password"]).strip()
@@ -515,10 +540,49 @@ async def handle_add_account(request):
             existing.append({"token": token})
         else:
             return web.json_response({"status": "error", "error": "Invalid payload"})
+
         _save_accounts_file(existing)
-        bot_state.log(f"New account added: {data.get('uid') or 'Token'}", "success")
+
+        # Pre-store password + target_level so it survives before login
+        if uid:
+            if uid not in bot_state.accounts:
+                bot_state.accounts[uid] = {
+                    "uid": uid,
+                    "password": pwd,
+                    "nickname": f"Player_{uid[:6]}",
+                    "region": "IND",
+                    "level": 1,
+                    "initial_exp": 0,
+                    "current_exp": 0,
+                    "gained_exp": 0,
+                    "likes": 0,
+                    "mode": "BR",
+                    "mode_manual": False,
+                    "status": "CONNECTING",
+                    "is_paused": False,
+                    "is_stopped": False,
+                    "target_level": target_level,
+                    "matches_played": 0,
+                    "matches_completed": 0,
+                    "active_matches": 0,
+                    "uptime_seconds": 0,
+                    "login_start_time": time.time(),
+                    "consecutive_failures": 0,
+                    "pause_until": None,
+                    "pause_till_4am": False,
+                    "last_match_time": None,
+                    "last_match_failed": None,
+                    "last_updated": time.strftime("%H:%M:%S"),
+                    "_last_lvl": 1,
+                }
+            else:
+                bot_state.accounts[uid]["password"] = pwd
+                bot_state.accounts[uid]["target_level"] = target_level
+
+        bot_state.log(f"New account added: {data.get('uid') or 'Token'} (Target: {target_level if target_level > 0 else 'None'})", "success")
         if "on_account_added" in bot_state.refresh_callbacks:
             asyncio.create_task(bot_state.refresh_callbacks["on_account_added"](data))
+        _save_accounts_db()
         return web.json_response({"status": "ok"})
     except Exception as e:
         return web.json_response({"status": "error", "error": str(e)})
@@ -545,7 +609,7 @@ async def handle_bulk_add(request):
                 key = f"uid:{uid}"
                 if key in existing_keys: skipped += 1; continue
                 existing_keys.add(key)
-                entry = {"uid": uid, "password": pwd}
+                entry = {"uid": uid, "password": pwd, "target_level": int(acc.get("target_level", 0) or 0)}
                 existing.append(entry); added_entries.append(entry); added += 1
             elif "token" in acc:
                 token = str(acc["token"]).strip()
@@ -561,6 +625,7 @@ async def handle_bulk_add(request):
             bot_state.log(f"Bulk add: +{added} accounts, {skipped} skipped, {invalid} invalid", "success")
             if "on_account_added" in bot_state.refresh_callbacks:
                 asyncio.create_task(_staggered_worker_start(added_entries))
+        _save_accounts_db()
         return web.json_response({"status": "ok", "added": added, "skipped": skipped, "invalid": invalid})
     except Exception as e:
         return web.json_response({"status": "error", "error": str(e)})
@@ -840,7 +905,7 @@ def _save_accounts_file(accounts):
     try:
         tmp = ACCOUNTS_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(accounts, f, indent=2)
+            json.dump(accounts, f, indent=2, ensure_ascii=False)
         os.replace(tmp, ACCOUNTS_FILE)
     except Exception as e:
         print(f"Save accounts failed: {e}")
@@ -848,16 +913,11 @@ def _save_accounts_file(accounts):
 
 def _save_accounts_db():
     try:
-        creds = _load_accounts_file()
-        cred_map = {}
-        for c in creds:
-            if c.get("uid"):
-                cred_map[str(c["uid"])] = c.get("password", "")
         accounts_list = []
         for uid, acc in bot_state.accounts.items():
             accounts_list.append({
                 "uid": str(acc.get("uid", "")),
-                "password": cred_map.get(str(acc.get("uid", "")), ""),
+                "password": acc.get("password", ""),
                 "name": acc.get("nickname", ""),
                 "account_id": str(acc.get("uid", "")),
                 "region": acc.get("region", "IND"),
@@ -869,6 +929,7 @@ def _save_accounts_db():
                 "is_paused": bool(acc.get("is_paused", False)),
                 "is_stopped": bool(acc.get("is_stopped", False)),
                 "mode": acc.get("mode", "BR"),
+                "target_level": int(acc.get("target_level", 0) or 0),
                 "matches_played": int(acc.get("matches_played", 0) or 0),
                 "matches_completed": int(acc.get("matches_completed", 0) or 0),
                 "last_updated": acc.get("last_updated", "")
