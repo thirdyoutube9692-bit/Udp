@@ -306,10 +306,14 @@ def render_banner(info: AccountPersonalShowInfo, overrides: Optional[Dict[str, A
     if prime_lvl is None:
         prime_lvl = fields.get("prime_level")
 
+    # Fallback to defaults when profile has no custom avatar/banner set
+    # Nulla (101000001) is always in data.json
     if not avatar_id:
-        raise LookupError("no avatar_id in profile and none provided")
+        avatar_id = 101000001
+        print("[banner] avatar_id missing in profile, using default 101000001")
     if not banner_id:
-        raise LookupError("no banner_id in profile and none provided")
+        banner_id = 901000001
+        print("[banner] banner_id missing in profile, using default 901000001")
 
     avatar_bytes = _fetch_avatar(avatar_id)
     banner_bytes = _fetch_banner(banner_id)
