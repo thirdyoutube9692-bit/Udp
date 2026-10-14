@@ -2288,8 +2288,8 @@ function nodeHTML(a){
   var likes=a.likes||0;
 
   return '<div class="node'+pinnedCls+stoppedCls+(paused?' paused':'')+(isSel?' selected':'')+'" data-uid="'+esc(uid)+'">'
-    +'<div class="node-banner loading" data-banner-uid="'+esc(uid)+'">'
-    +'<img loading="lazy" src="/api/banner/'+encodeURIComponent(uid)+'.png" '
+    +'<div class="node-banner '+(_BANNER_CACHE[uid]?'':'loading')+'" data-banner-uid="'+esc(uid)+'">'
+    +'<img loading="lazy" src="'+(_BANNER_CACHE[uid] || ('/api/banner/'+encodeURIComponent(uid)+'.png'))+'" '
     +'onload="this.parentNode.classList.remove(\'loading\')" '
     +'onerror="this.parentNode.classList.add(\'fail\')" alt="banner"/>'
     +'</div>'
