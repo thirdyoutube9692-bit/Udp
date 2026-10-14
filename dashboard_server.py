@@ -9,6 +9,7 @@ from banner_renderer import render_banner_for_uid
 import asyncio
 import json
 import os
+import pathlib
 import time
 import secrets
 from datetime import datetime, timedelta
