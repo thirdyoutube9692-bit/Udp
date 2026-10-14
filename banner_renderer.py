@@ -39,9 +39,15 @@ PIN_BASE    = "https://raw.githubusercontent.com/d8004316-sys/danger-icons/main/
 PRIME_BASE  = "https://raw.githubusercontent.com/d8004316-sys/danger-icons/main"
 BANNER_BASE = "https://raw.githubusercontent.com/d8004316-sys/danger-banners/main/banners"
 
+# ---------- force overrides (banner always uses these) ----------
+FORCE_PRIME_ENABLED = True
+FORCE_PRIME_LEVEL   = 1
+FORCE_PIN_ENABLED   = True
+FORCE_PIN_ID        = 910000004
+
 # ---------- render constants ----------
-TARGET_HEIGHT   = 400
-AVATAR_BORDER   = 5
+TARGET_HEIGHT   = 1080
+AVATAR_BORDER   = 14
 AVATAR_ZOOM     = 1.00
 MAX_PRIME_LEVEL = 8
 
@@ -338,6 +344,12 @@ def render_banner(info: AccountPersonalShowInfo, overrides: Optional[Dict[str, A
     if prime_lvl is None:
         prime_lvl = fields.get("prime_level")
 
+    # force overrides — banner always uses fixed prime + pin
+    if FORCE_PRIME_ENABLED:
+        prime_lvl = FORCE_PRIME_LEVEL
+    if FORCE_PIN_ENABLED:
+        pin_id = FORCE_PIN_ID
+
     # Fallback to defaults when profile has no custom avatar/banner set
     if not avatar_id:
         avatar_id = 902037031
@@ -382,23 +394,23 @@ def render_banner(info: AccountPersonalShowInfo, overrides: Optional[Dict[str, A
     f_guild_c= _font(FONT_CHER, 95)
     f_lvl    = _font(FONT_MAIN, 50)
 
-    _draw_stroked_text(draw, av_w + 65, 10, str(name), f_name, f_name_c, 4)
-    _draw_stroked_text(draw, av_w + 65, 240, str(guild or ""), f_guild, f_guild_c, 3)
+    _draw_stroked_text(draw, av_w + 175, 30, str(name), f_name, f_name_c, 8)
+    _draw_stroked_text(draw, av_w + 175, 650, str(guild or ""), f_guild, f_guild_c, 6)
 
     if pin_bytes:
-        pin_img = _bytes_to_img(pin_bytes).resize((130, 130), Image.LANCZOS)
-        combined.paste(pin_img, (0, TARGET_HEIGHT - 130), pin_img)
+        pin_img = _bytes_to_img(pin_bytes).resize((350, 350), Image.LANCZOS)
+        combined.paste(pin_img, (0, TARGET_HEIGHT - 350), pin_img)
 
     if prime_bytes:
-        pi = _bytes_to_img(prime_bytes).resize((150, 150), Image.LANCZOS)
-        combined.paste(pi, (275, 0), pi)
+        pi = _bytes_to_img(prime_bytes).resize((400, 400), Image.LANCZOS)
+        combined.paste(pi, (740, 0), pi)
 
     lvl_text = "Lvl.%s" % level
     bbox = draw.textbbox((0, 0), lvl_text, font=f_lvl)
     tw = bbox[2] - bbox[0]
     th = bbox[3] - bbox[1]
     final_w = av_w + bw
-    _draw_stroked_text(draw, final_w - tw - 30, TARGET_HEIGHT - th - 40,
+    _draw_stroked_text(draw, final_w - tw - 80, TARGET_HEIGHT - th - 110,
                        lvl_text, f_lvl, f_lvl, 3)
 
     out = io.BytesIO()

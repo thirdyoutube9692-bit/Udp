@@ -316,9 +316,15 @@ bot_state = BotState()
 
 # ==================== PATHS ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = pathlib.Path(os.environ.get("DATA_DIR", BASE_DIR)).resolve()
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as _e:
+    print(f"[!] DATA_DIR mkdir failed: {_e}; falling back to BASE_DIR")
+    DATA_DIR = pathlib.Path(BASE_DIR)
 TEMPLATE_PATH = os.path.join(BASE_DIR, "index.html")
-ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
-ACCOUNTS_DB_FILE = os.path.join(BASE_DIR, "accounts_db.json")
+ACCOUNTS_FILE = str(DATA_DIR / "accounts.json")
+ACCOUNTS_DB_FILE = str(DATA_DIR / "accounts_db.json")
 
 
 # ==================== LOGIN PAGE ====================
@@ -1034,6 +1040,57 @@ async def auto_resume_task():
         await asyncio.sleep(30)
 
 
+# ==================== IMPORT DB ====================
+async def handle_import_db(request):
+    """Restore accounts.json from an uploaded accounts_db.json snapshot."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "error": "invalid JSON"}, status=400)
+
+    accounts = data.get("accounts", []) if isinstance(data, dict) else data
+    if not isinstance(accounts, list):
+        return web.json_response({"status": "error", "error": "accounts must be list"}, status=400)
+
+    entries = []
+    for acc in accounts:
+        if not isinstance(acc, dict):
+            continue
+        uid = str(acc.get("uid", "")).strip()
+        pwd = str(acc.get("password", "")).strip()
+        if not uid or not pwd:
+            continue
+        entries.append({
+            "uid": uid,
+            "password": pwd,
+            "target_level": int(acc.get("target_level", 0) or 0),
+        })
+
+    if not entries:
+        return web.json_response({"status": "error", "error": "no valid accounts"}, status=400)
+
+    _save_accounts_file(entries)
+    bot_state.log(f"Imported {len(entries)} accounts from DB backup", "success")
+
+    started = 0
+    cb = bot_state.refresh_callbacks.get("on_account_added")
+    if cb:
+        for i, e in enumerate(entries):
+            try:
+                if i > 0:
+                    await asyncio.sleep(1.5)
+                asyncio.create_task(cb(e))
+                started += 1
+            except Exception:
+                pass
+
+    return web.json_response({
+        "status": "ok",
+        "imported": len(entries),
+        "started": started,
+    })
+
+
 # ==================== REGIONS ====================
 async def handle_regions(request):
     """Return per-region pool info (count + JWT expiry)."""
@@ -1120,6 +1177,7 @@ async def start_web_dashboard(host="0.0.0.0", port=5000):
     app.router.add_post("/api/account/stop", handle_stop_account)
     app.router.add_post("/api/account/unstop", handle_unstop_account)
     app.router.add_post("/api/accounts/remove_all", handle_remove_all)
+    app.router.add_post("/api/accounts/import_db", handle_import_db)
 
     runner = web.AppRunner(app)
     await runner.setup()
@@ -1130,6 +1188,8 @@ async def start_web_dashboard(host="0.0.0.0", port=5000):
     asyncio.create_task(_db_persist_task())
 
     print(f"\033[92m[+] RAJA Dashboard: http://localhost:{port}\033[0m")
+    print(f"\033[96m[+] DATA_DIR: {DATA_DIR}\033[0m")
+    print(f"\033[96m[+] Accounts file: {ACCOUNTS_FILE}\033[0m")
     print(f"\033[93m[+] Admin key: {ADMIN_KEY}\033[0m")
     print(f"\033[93m[+] User key : {USER_KEY}\033[0m")
     print(f"\033[93m[+] Telegram : {TELEGRAM_LINK}\033[0m")

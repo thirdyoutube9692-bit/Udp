@@ -269,3 +269,7 @@ def set_cached_fields(uid: str, fields: Dict[str, Any], meta: Optional[Dict[str,
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(d, f, indent=2, ensure_ascii=False)
     os.replace(tmp, FIELDS_FILE)
+
+
+# ── alias for banner_renderer ──
+get_pool_creds = get_pool_session
