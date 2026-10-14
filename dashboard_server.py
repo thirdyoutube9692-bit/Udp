@@ -25,6 +25,13 @@ SESSION_TTL = 86400 * 7
 BULK_STAGGER_DELAY = 1.5
 AUTO_LW_LEVEL = 3
 
+# ─── Banner render force overrides ───
+# true = har banner me fixed value use hogi (profile se nahi)
+FORCE_PRIME_ENABLED = True
+FORCE_PRIME_LEVEL   = 1                # 1..8
+FORCE_PIN_ENABLED   = True
+FORCE_PIN_ID        = 910000004        # banner_assets/pin me hona chahiye
+
 ADMIN_ONLY_PATHS = {
     "/api/account/add",
     "/api/account/bulk_add",
