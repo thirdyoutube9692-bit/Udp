@@ -2570,7 +2570,7 @@ function nodeHTML(a){
 
   return '<div class="node'+pinnedCls+stoppedCls+(paused?' paused':'')+(isSel?' selected':'')+'" data-uid="'+esc(uid)+'">'
     +'<div class="node-banner'+(window._LOADED_BANNER[uid]?'':' loading')+'" data-banner-uid="'+esc(uid)+'">'
-    +'<img src="/api/banner/'+encodeURIComponent(uid)+'.png?v='+level+'x'+cur+'" '
+    +'<img src="" data-src="/api/banner/'+encodeURIComponent(uid)+'.png?v='+level+'x'+cur+'" '
     +'onload="window._LOADED_BANNER[\''+esc(uid)+'\']=true;this.parentNode.classList.remove(\'loading\')" '
     +'onerror="this.parentNode.classList.add(\'fail\')" alt="banner"/>'
     +'</div>'
@@ -3915,6 +3915,62 @@ function downloadBanner(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 window.openBanner=openBanner;
+
+// ═══ LAZY BANNER LOADER ═══
+window._BANNER_SEEN = {};   // uid -> loaded flag (memory)
+
+function _loadBannerImg(el) {
+  var src = el.getAttribute('data-src');
+  if (!src || el.dataset.loaded === '1') return;
+  el.dataset.loaded = '1';
+  el.onload  = function(){ 
+    var box = el.parentNode;
+    if (box) box.classList.remove('loading');
+  };
+  el.onerror = function(){
+    var box = el.parentNode;
+    if (box) { box.classList.remove('loading'); box.classList.add('fail'); }
+  };
+  el.src = src;
+}
+
+// IntersectionObserver — sirf visible banners load
+window._bannerObserver = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if (e.isIntersecting) {
+      var box = e.target;
+      var img = box.querySelector('img[data-src]');
+      if (img) _loadBannerImg(img);
+      window._bannerObserver.unobserve(box);
+    }
+  });
+}, { rootMargin: '200px', threshold: 0.01 });
+
+function observeBanners() {
+  document.querySelectorAll('.node-banner:not(.observed)').forEach(function(box){
+    box.classList.add('observed');
+    window._bannerObserver.observe(box);
+  });
+}
+
+// Hook into renderNodes
+var _origRenderNodes_lazy = renderNodes;
+renderNodes = function(force){
+  _origRenderNodes_lazy(force);
+  setTimeout(observeBanners, 100);
+};
+
+// Also observe on initial load
+window.addEventListener('load', function(){
+  setTimeout(observeBanners, 500);
+});
+
+// Scroll pe bhi (fallback)
+window.addEventListener('scroll', function(){
+  if (window._scrollTimer) clearTimeout(window._scrollTimer);
+  window._scrollTimer = setTimeout(observeBanners, 200);
+}, { passive: true });
+
 
 // ═══ RESTORE DB ═══
 function initRestoreDb() {
