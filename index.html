@@ -1760,7 +1760,7 @@ body::after{
 (function(){
 'use strict';
 
-var _LOADED_BANNER = {};   // uid -> true after first successful banner load
+window._LOADED_BANNER = {};   // uid -> true after first successful banner load
 
 
 
@@ -2297,9 +2297,9 @@ function nodeHTML(a){
   var likes=a.likes||0;
 
   return '<div class="node'+pinnedCls+stoppedCls+(paused?' paused':'')+(isSel?' selected':'')+'" data-uid="'+esc(uid)+'">'
-    +'<div class="node-banner'+(_LOADED_BANNER[uid]?'':' loading')+'" data-banner-uid="'+esc(uid)+'">'
-    +'<img loading="lazy" src="/api/banner/'+encodeURIComponent(uid)+'.png" '
-    +'onload="_LOADED_BANNER[\''+esc(uid)+'\']=true;this.parentNode.classList.remove(\'loading\')" '
+    +'<div class="node-banner'+(window._LOADED_BANNER[uid]?'':' loading')+'" data-banner-uid="'+esc(uid)+'">'
+    +'<img src="/api/banner/'+encodeURIComponent(uid)+'.png" '
+    +'onload="window._LOADED_BANNER[\''+esc(uid)+'\']=true;this.parentNode.classList.remove(\'loading\')" '
     +'onerror="this.parentNode.classList.add(\'fail\')" alt="banner"/>'
     +'</div>'
     +'<div class="node-subrow">'
