@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-accounts.json
-accounts_db.json
-token_cache.json
-devices.json
-banner_pool_state.json
-banner_fields.json
-*.tmp
