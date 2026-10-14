@@ -213,6 +213,44 @@ button{cursor:pointer;border:0;background:none}
 .node-banner.zoomed img{width:auto;height:auto;max-width:96vw;max-height:92vh;object-fit:contain;box-shadow:0 0 60px rgba(0,240,255,.4)}
 .node-banner.zoomed::after{content:'✕';position:absolute;top:16px;right:20px;font-size:22px;color:#fff;cursor:pointer;padding:8px 12px;background:rgba(0,0,0,.6);border:1px solid rgba(0,240,255,.4)}
 
+/* NODE SUBROW (v2) */
+.node-subrow{display:flex;align-items:center;gap:8px;padding:10px 14px;
+  border-bottom:1px dashed rgba(0,240,255,.15);flex-wrap:nowrap;overflow:hidden}
+.node-uid{font-family:'JetBrains Mono';font-size:13px;color:var(--text2);
+  display:flex;align-items:center;gap:6px;letter-spacing:.5px;
+  flex-shrink:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-uid i{cursor:pointer;transition:.2s;color:var(--text3);font-size:12px;flex-shrink:0}
+.node-uid i:hover{color:var(--neon)}
+.subrow-spacer{flex:1;min-width:4px}
+.subrow-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.region-pill{display:inline-flex;align-items:center;justify-content:center;
+  padding:5px 12px;border-radius:5px;flex-shrink:0;
+  font-family:'Orbitron';font-weight:900;font-size:11px;letter-spacing:1.5px;
+  text-transform:uppercase;background:linear-gradient(180deg,#7a8896,#4a5666);color:#fff;
+  border:1px solid rgba(255,255,255,.25);
+  box-shadow:0 2px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.2);
+  transition:all .3s ease;min-width:54px}
+.region-pill[data-region="IND"]{background:linear-gradient(180deg,#ffb020,#e07a00);border-color:#ffcc55;color:#1a0a00}
+.region-pill[data-region="BD"]{background:linear-gradient(180deg,#00e5ff,#0088cc);border-color:#55f0ff;color:#001a22}
+.region-pill[data-region="PK"]{background:linear-gradient(180deg,#00d97a,#009955);border-color:#55ffaa;color:#002210}
+.region-pill[data-region="ID"]{background:linear-gradient(180deg,#ff0066,#cc0044);border-color:#ff55aa;color:#fff}
+.region-pill[data-region="TH"]{background:linear-gradient(180deg,#ffcc00,#cc9900);border-color:#ffe055;color:#1a1200}
+.region-pill[data-region="VN"]{background:linear-gradient(180deg,#ff3333,#cc0000);border-color:#ff6666;color:#fff}
+.region-pill[data-region="SG"]{background:linear-gradient(180deg,#ff4466,#cc2244);border-color:#ff7799;color:#fff}
+.region-pill[data-region="TW"]{background:linear-gradient(180deg,#3366ff,#1133cc);border-color:#6688ff;color:#fff}
+.region-pill[data-region="ME"]{background:linear-gradient(180deg,#00a050,#007030);border-color:#33d080;color:#fff}
+.region-pill[data-region="?"]{background:linear-gradient(180deg,#555,#333);color:#aaa}
+.region-pill.pulse{animation:rp-pulse .7s ease}
+@keyframes rp-pulse{0%{transform:scale(1)}50%{transform:scale(1.1);filter:brightness(1.4)}100%{transform:scale(1)}}
+.node-banner{position:relative;width:100%;background:linear-gradient(135deg,rgba(0,240,255,.06),rgba(255,0,170,.04));overflow:hidden;display:flex;align-items:center;justify-content:center}
+.node-banner img{width:100%;height:auto;display:block;transition:opacity .4s}
+.node-banner.loading img{opacity:0}
+.node-banner.loading::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:24px;height:24px;border:2.5px solid rgba(0,240,255,.3);border-top-color:var(--neon);border-radius:50%;animation:nb-spin .8s linear infinite}
+@keyframes nb-spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.node-banner.fail{aspect-ratio:2.6/1;background:linear-gradient(135deg,rgba(255,0,68,.08),rgba(0,0,0,.6))}
+.node-banner.fail::after{content:'BANNER UNAVAILABLE';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--err);font-family:'JetBrains Mono';font-size:11px;letter-spacing:1px;text-align:center;padding:0 20px}
+.node-banner.fail img{display:none}
+
 /* ============ NODE CARD EXTRAS ============ */
 .node-check{position:absolute;top:12px;right:12px;width:20px;height:20px;border:1.5px solid var(--line2);cursor:pointer;display:grid;place-items:center;background:rgba(0,0,0,.5);opacity:0;transition:var(--ease);z-index:5}
 .node:hover .node-check,.node.selected .node-check{opacity:1}
@@ -1876,6 +1914,7 @@ function renderNodes(force){
 
 function nodeHTML(a){
   var uid=String(a.uid);
+  var region=(a.region||'IND').toUpperCase();
   var level=Math.max(1,parseInt(a.level)||1);
   var next=Math.min(100,level+1);
   var base=EXP_TABLE[level]||0;
@@ -1885,86 +1924,85 @@ function nodeHTML(a){
   var earned=Math.max(0,cur-base);
   var remain=Math.max(0,nextExp-cur);
   var pct=level>=100?100:Math.min(100,Math.max(0,(earned/needed)*100));
-
   var paused=!!(a.is_paused||a.status==='PAUSED');
   var stopped=!!(a.is_stopped||a.status==='STOPPED');
-  var status=stopped?'STOPPED':(paused?'PAUSED':(a.status||'ONLINE'));
-  var cls='on',icon='fa-circle',stText=status;
-  if(stopped){cls='stopped';icon='fa-stop';stText='STOPPED';}
-  else if(paused){cls='paused';icon='fa-pause';stText='PAUSED';}
-  else if(status==='IN_MATCH'){cls='match';icon='fa-crosshairs';stText='MATCH';}
-  else if(status==='SEARCHING'){cls='search';icon='fa-magnifying-glass';stText='SEARCH';}
-  else if(status==='CONNECTING'){cls='search';icon='fa-plug';stText='CONNECT';}
-  else if(status!=='ONLINE'){cls='err';icon='fa-triangle-exclamation';}
-
+  var statusRaw=stopped?'STOPPED':(paused?'PAUSED':(a.status||'ONLINE'));
+  var statusShort='ONLINE', statusCls='online', stIcon='fa-circle';
+  if(stopped){statusShort='STOPPED';statusCls='stopped';stIcon='fa-stop';}
+  else if(paused){statusShort='PAUSED';statusCls='paused';stIcon='fa-pause';}
+  else if(statusRaw==='IN_MATCH'){statusShort='MATCH';statusCls='match';stIcon='fa-crosshairs';}
+  else if(statusRaw==='SEARCHING'){statusShort='SEARCH';statusCls='search';stIcon='fa-magnifying-glass';}
+  else if(statusRaw==='CONNECTING'){statusShort='CONNECT';statusCls='search';stIcon='fa-plug';}
+  else if(statusRaw!=='ONLINE'){statusShort=statusRaw;statusCls='err';stIcon='fa-triangle-exclamation';}
   var isBR=a.mode!=='LONE_WOLF';
   var isSel=!!S.selected[uid];
   var matchesPlayed=a.matches_played||0;
   var activeMatches=a.active_matches||0;
   var isPinned=!!S.pins[uid];
   var hasNote=!!S.notes[uid];
+  var nickname=(a.nickname||'Unknown').trim();
+  var clanName=(a.clan_name||'').trim();
+  var noteDisplay=hasNote?S.notes[uid]:(nickname+(clanName?' · '+clanName:''));
   var pinnedCls=isPinned?' pinned':'';
   var stoppedCls=stopped?' stopped':'';
-
-  var bannerSrc = '/api/banner/' + encodeURIComponent(uid) + '.png';
+  var modeShort=isBR?'BR':'LW';
+  var modeCls=isBR?'br':'lw';
+  var uptime=a.uptime_seconds||0;
+  var likes=a.likes||0;
   return '<div class="node'+pinnedCls+stoppedCls+(paused?' paused':'')+(isSel?' selected':'')+'" data-uid="'+esc(uid)+'">'
     +'<div class="node-banner loading" data-banner-uid="'+esc(uid)+'">'
-    +'<img loading="lazy" src="'+bannerSrc+'" '
+    +'<img loading="lazy" src="/api/banner/'+encodeURIComponent(uid)+'.png" '
     +'onload="this.parentNode.classList.remove(\'loading\')" '
-    +'onerror="this.parentNode.classList.add(\'fail\')" '
-    +'alt="banner"/>'
+    +'onerror="this.parentNode.classList.add(\'fail\')" alt="banner"/>'
     +'</div>'
-    +'<button class="pin-btn'+(isPinned?' pinned':'')+'" data-action="pin" data-uid="'+esc(uid)+'" title="'+(isPinned?'Unpin':'Pin to top')+'"><i class="fa-solid fa-star"></i></button>'
-    +'<div class="node-check'+(isSel?' on':'')+'" data-action="select" data-uid="'+esc(uid)+'"></div>'
-    +'<div class="node-hdr">'
-    +'<div class="node-avatar">'+level+'<span class="lvl">LV</span></div>'
-    +'<div class="node-info">'
-    +'<div class="node-name">'+esc(a.nickname||'Unknown')+'</div>'
-    +'<div class="node-uid">'+esc(uid)+' <i class="fa-regular fa-copy" data-action="copy-uid" data-uid="'+esc(uid)+'"></i></div>'
-    +'<div class="node-badges">'
-    +'<span class="n-badge '+cls+'"><i class="fa-solid '+icon+'"></i>'+esc(stText)+(activeMatches>1?' ×'+activeMatches:'')+'</span>'
-    +'<span class="n-badge mode"><i class="fa-solid '+(isBR?'fa-parachute-box':'fa-crosshairs')+'"></i>'+(isBR?'BR':'LW')+'</span>'
-    +'</div></div></div>'
-    +'<div class="node-notes'+(hasNote?'':' empty')+'" data-action="note" data-uid="'+esc(uid)+'">'+esc(hasNote?S.notes[uid]:'Click to add note...')+'</div>'
+    +'<div class="node-subrow">'
+    +'<span class="node-uid">'+esc(uid)
+    +' <i class="fa-regular fa-copy" data-action="copy-uid" data-uid="'+esc(uid)+'"></i></span>'
+    +'<span class="subrow-spacer"></span>'
+    +'<div class="subrow-right">'
+    +'<span class="region-pill" data-region="'+esc(region)+'">'+esc(region)+'</span>'
+    +'<span class="status-pill '+statusCls+'"><i class="fa-solid '+stIcon+'" style="font-size:8px"></i>'+statusShort+(activeMatches>1?' ×'+activeMatches:'')+'</span>'
+    +'<span class="mode-pill '+modeCls+'"><i class="fa-solid '+(isBR?'fa-parachute-box':'fa-crosshairs')+'"></i> '+modeShort+'</span>'
+    +'<button class="pin-btn'+(isPinned?' pinned':'')+'" data-action="pin" data-uid="'+esc(uid)+'" title="Pin"><i class="fa-solid fa-star"></i></button>'
+    +'</div></div>'
+    +'<div class="node-notes'+(hasNote?'':' empty')+'" data-action="note" data-uid="'+esc(uid)+'">'
+    +'<i class="fa-solid fa-note-sticky"></i><span>'+esc(noteDisplay)+'</span></div>'
     +'<div class="node-metrics">'
     +'<div class="n-metric"><div class="l">BASE</div><div class="v">'+num(a.initial_exp||0)+'</div></div>'
-    +'<div class="n-metric"><div class="l">CURR</div><div class="v">'+num(cur)+'</div></div>'
+    +'<div class="n-metric"><div class="l">LIKES</div><div class="v">'+num(likes)+'</div></div>'
     +'<div class="n-metric gain"><div class="l">GAIN</div><div class="v">+'+num(a.gained_exp||0)+'</div></div>'
     +'</div>'
-    +'<div class="lvl-bar-wrap">'
-    +'<div class="lvl-bar-head">'
-    +'<div class="lvl-bar-nodes">'
-    +'<span class="lvl-badge-sm">LV.'+level+'</span>'
+    +'<div class="lvl-hdr">'
+    +'<div class="lvl-badges">'
+    +'<span class="lvl-badge now">LV.'+level+'</span>'
     +'<span class="lvl-arrow"><i class="fa-solid fa-arrow-right"></i></span>'
-    +'<span class="lvl-badge-sm next">LV.'+next+'</span>'
+    +'<span class="lvl-badge next">LV.'+next+'</span>'
     +'</div>'
-    +'<div class="lvl-pct'+(pct>=99.5?' full':(pct>=80?' near':''))+'">'+pct.toFixed(1)+'%</div>'
+    +'<span class="lvl-pct'+(pct>=99.5?' full':(pct>=80?' near':''))+'">'+pct.toFixed(1)+'%</span>'
     +'</div>'
     +'<div class="lvl-track">'
     +'<div class="lvl-fill'+(pct>=80?' near':'')+'" style="width:'+pct.toFixed(1)+'%"></div>'
     +'<div class="lvl-marker" style="left:calc('+pct.toFixed(1)+'% - 2px)"></div>'
     +'</div>'
-    +'<div class="lvl-bar-foot">'
-    +'<div><span class="earned">'+num(earned)+'</span> <span class="needed">/ '+num(needed)+'</span></div>'
-    +'<div><span class="left-lbl">'+num(remain)+' LEFT</span></div>'
-    +'</div>'
-    +'</div>'
-    +'<div class="node-foot">'
-    +'<div class="nf-info">'
-    +'<span><i class="fa-solid fa-stopwatch"></i>'+fmtDur(a.uptime_seconds||0)+'</span>'
-    +'<span><i class="fa-solid fa-bolt"></i>'+matchesPlayed+'</span>'
+    +'<div class="node-prog-foot">'
+    +'<span><span class="earned">'+num(earned)+'</span> <span class="needed">/ '+num(needed)+'</span></span>'
+    +'<span class="left-lbl">'+num(remain)+' LEFT</span>'
     +'</div>'
     +'<div class="nf-actions">'
-    +'<button class="nf-btn br'+(isBR?' on':'')+'" data-action="mode" data-uid="'+esc(uid)+'" data-mode="BR"><i class="fa-solid fa-parachute-box"></i>BR</button>'
-    +'<button class="nf-btn lw'+(!isBR?' on':'')+'" data-action="mode" data-uid="'+esc(uid)+'" data-mode="LONE_WOLF"><i class="fa-solid fa-crosshairs"></i>LW</button>'
-    +'<button class="nf-btn act" data-action="banner" data-uid="'+esc(uid)+'" title="View Banner" style="color:var(--gold)"><i class="fa-solid fa-image"></i></button>'
+    +'<button class="nf-btn br'+(isBR?' on':'')+'" data-action="mode" data-uid="'+esc(uid)+'" data-mode="BR"><i class="fa-solid fa-parachute-box"></i> BR</button>'
+    +'<button class="nf-btn lw'+(!isBR?' on':'')+'" data-action="mode" data-uid="'+esc(uid)+'" data-mode="LONE_WOLF"><i class="fa-solid fa-crosshairs"></i> LW</button>'
+    +'<button class="nf-btn act banner" data-action="banner" data-uid="'+esc(uid)+'"><i class="fa-solid fa-image"></i></button>'
     +'<button class="nf-btn act" data-action="pause" data-uid="'+esc(uid)+'"><i class="fa-solid '+(paused?'fa-play':'fa-pause')+'"></i></button>'
     +'<button class="nf-btn act" data-action="sync" data-uid="'+esc(uid)+'"><i class="fa-solid fa-arrows-rotate"></i></button>'
     +(stopped
-      ?'<button class="nf-btn act stop-btn stopped" data-action="unstop" data-uid="'+esc(uid)+'" title="Resume"><i class="fa-solid fa-play"></i></button>'
-      :'<button class="nf-btn act stop-btn" data-action="stop" data-uid="'+esc(uid)+'" title="Stop (keep in JSON)"><i class="fa-solid fa-stop"></i></button>')
-    +'<button class="nf-btn act" data-action="delete" data-uid="'+esc(uid)+'" style="color:var(--err)"><i class="fa-solid fa-trash"></i></button>'
-    +'</div></div></div>';
+      ?'<button class="nf-btn act stop-btn stopped" data-action="unstop" data-uid="'+esc(uid)+'"><i class="fa-solid fa-play"></i></button>'
+      :'<button class="nf-btn act stop-btn" data-action="stop" data-uid="'+esc(uid)+'"><i class="fa-solid fa-stop"></i></button>')
+    +'<button class="nf-btn act del" data-action="delete" data-uid="'+esc(uid)+'"><i class="fa-solid fa-trash"></i></button>'
+    +'<span class="nf-info"><i class="fa-solid fa-stopwatch"></i>'+fmtDur(uptime)
+    +'<span class="sep">·</span><i class="fa-solid fa-bolt"></i>'+matchesPlayed
+    +'</span>'
+    +'</div>'
+    +'</div>';
 }
 
 // ============================================================
@@ -3258,6 +3296,44 @@ function downloadBanner(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 window.openBanner=openBanner;
+
+// Live banner + fields auto-loader
+async function loadNodeBanner(uid) {
+  var box = document.querySelector('.node-banner[data-banner-uid="'+uid+'"]');
+  if (!box) return;
+  var img = box.querySelector('img');
+  if (!img) return;
+  img.src = '/api/banner/' + encodeURIComponent(uid) + '.png?t=' + Date.now();
+}
+async function loadNodeFields(uid) {
+  try {
+    var r = await fetch('/api/banner_info/' + encodeURIComponent(uid));
+    if (!r.ok) return;
+    var j = await r.json();
+    var f = j.fields || {};
+    var region = (f.region || 'IND').toUpperCase();
+    var node = document.querySelector('.node[data-uid="'+uid+'"]');
+    if (!node) return;
+    var pill = node.querySelector('.region-pill');
+    if (pill) { pill.setAttribute('data-region', region); pill.textContent = region;
+      pill.classList.remove('pulse'); void pill.offsetWidth; pill.classList.add('pulse'); }
+    if (f.likes) {
+      var likesEl = node.querySelectorAll('.n-metric .v')[1];
+      if (likesEl) likesEl.textContent = Number(f.likes).toLocaleString();
+    }
+  } catch(e) {}
+}
+var _origRenderNodes = renderNodes;
+renderNodes = function(force){
+  _origRenderNodes(force);
+  setTimeout(function(){
+    S.accounts.forEach(function(a){
+      var uid = String(a.uid);
+      loadNodeBanner(uid);
+      loadNodeFields(uid);
+    });
+  }, 150);
+};
 window.closeBanner=closeBanner;
 
 })();
