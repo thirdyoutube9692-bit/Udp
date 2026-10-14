@@ -1,0 +1,7 @@
+{
+  "accounts": [
+    {"uid": "8187461607", "password": "FFDEVILDQET1XVPEBQ7GIYCWI"},
+    {"uid": "8272181211", "password": "BCS_FF592DE266222E9B"}
+  ],
+  "jwt_buffer_seconds": 300
+}
