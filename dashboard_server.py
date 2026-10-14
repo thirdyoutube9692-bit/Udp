@@ -1027,6 +1027,62 @@ async def auto_resume_task():
         await asyncio.sleep(30)
 
 
+# ==================== REGIONS ====================
+async def handle_regions(request):
+    """Return per-region pool info (count + JWT expiry)."""
+    import base64 as _b64, json as _json
+
+    def _exp(token):
+        try:
+            parts = str(token).split(".")
+            if len(parts) < 2:
+                return 0
+            b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+            pl = _json.loads(_b64.urlsafe_b64decode(b64))
+            for k in ("exp", "expire", "expires_at", "eat"):
+                v = pl.get(k)
+                if isinstance(v, (int, float)) and v > 0:
+                    return int(v)
+        except Exception:
+            pass
+        return 0
+
+    regions = {}
+    now = time.time()
+    for uid, cred in list(bot_state.account_credentials.items()):
+        if not isinstance(cred, dict):
+            continue
+        acc_id = str(cred.get("account_id", ""))
+        if not acc_id:
+            continue
+        acc = bot_state.accounts.get(acc_id, {})
+        reg = str(acc.get("region") or cred.get("region") or "IND").upper()
+        tok = cred.get("token") or cred.get("jwt")
+        exp = _exp(tok) if tok else 0
+        if reg not in regions:
+            regions[reg] = {"region": reg, "count": 0,
+                            "expires_in_sec": 0, "expires_in": "—"}
+        regions[reg]["count"] += 1
+        if exp:
+            regions[reg]["expires_in_sec"] = max(
+                regions[reg]["expires_in_sec"], int(exp - now))
+
+    def fmt(s):
+        s = max(0, int(s))
+        h = s // 3600
+        m = (s % 3600) // 60
+        return f"{h}h{m:02d}m" if h else f"{m}m"
+
+    for r in regions.values():
+        r["expires_in"] = fmt(r["expires_in_sec"]) if r["expires_in_sec"] else "—"
+
+    return web.json_response({
+        "regions": sorted(regions.values(), key=lambda x: x["region"]),
+        "count": len(regions),
+        "now": now,
+    })
+
+
 # ==================== START SERVER ====================
 async def start_web_dashboard(host="0.0.0.0", port=5000):
     app = web.Application(middlewares=[auth_middleware])
@@ -1038,6 +1094,7 @@ async def start_web_dashboard(host="0.0.0.0", port=5000):
     app.router.add_get("/api/stats", handle_get_stats)
     app.router.add_get("/api/banner/{uid}.png", handle_banner)
     app.router.add_get("/api/banner_info/{uid}", handle_banner_info)
+    app.router.add_get("/api/regions", handle_regions)
     app.router.add_post("/api/account/add", handle_add_account)
     app.router.add_post("/api/account/bulk_add", handle_bulk_add)
     app.router.add_post("/api/account/delete", handle_delete_account)
