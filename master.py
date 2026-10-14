@@ -1977,7 +1977,7 @@ async def _process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         exp = int(get_proto_field(dict_res, 7, 0))
         likes = int(get_proto_field(dict_res, 8, 0))
         nickname = res_proto.nickname or get_proto_field(dict_res, 4, f"Player_{acc_id}")
-        region = _decode_jwt_region(majorlogin_response.token)
+        region = "IND"
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region,
                                    level=level, exp=exp, likes=likes,
@@ -2079,7 +2079,7 @@ async def _process_account_token(access_token: str) -> Optional[Dict]:
         exp = int(get_proto_field(dict_res, 7, 0))
         likes = int(get_proto_field(dict_res, 8, 0))
         nickname = res_proto.nickname or get_proto_field(dict_res, 4, f"Player_{acc_id}")
-        region = _decode_jwt_region(majorlogin_response.token)
+        region = "IND"
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region,
                                    level=level, exp=exp, likes=likes,

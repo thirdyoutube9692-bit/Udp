@@ -1312,6 +1312,10 @@ body::after{
     0 0 100px rgba(0,240,255,.12),
     inset 0 1px 0 rgba(255,255,255,.1) !important;
 }
+
+.node .node-prog-foot{display:flex !important;justify-content:space-between !important;align-items:center !important;gap:12px !important}
+.node .node-prog-foot .pf-left{text-align:left;flex:1}
+.node .node-prog-foot .pf-right{text-align:right;flex:1}
 </style>
 </head>
 <body>
@@ -1755,6 +1759,9 @@ body::after{
 <script>
 (function(){
 'use strict';
+
+var _LOADED_BANNER = {};   // uid -> true after first successful banner load
+
 
 
 
@@ -2290,9 +2297,9 @@ function nodeHTML(a){
   var likes=a.likes||0;
 
   return '<div class="node'+pinnedCls+stoppedCls+(paused?' paused':'')+(isSel?' selected':'')+'" data-uid="'+esc(uid)+'">'
-    +'<div class="node-banner loading" data-banner-uid="'+esc(uid)+'">'
+    +'<div class="node-banner'+(_LOADED_BANNER[uid]?'':' loading')+'" data-banner-uid="'+esc(uid)+'">'
     +'<img loading="lazy" src="/api/banner/'+encodeURIComponent(uid)+'.png" '
-    +'onload="this.parentNode.classList.remove(\'loading\')" '
+    +'onload="_LOADED_BANNER[\''+esc(uid)+'\']=true;this.parentNode.classList.remove(\'loading\')" '
     +'onerror="this.parentNode.classList.add(\'fail\')" alt="banner"/>'
     +'</div>'
     +'<div class="node-subrow">'
@@ -2310,7 +2317,7 @@ function nodeHTML(a){
     +'<div class="node-metrics">'
     +'<div class="n-metric"><div class="l">BASE</div><div class="v">'+num(a.initial_exp||0)+'</div></div>'
     +'<div class="n-metric"><div class="l">LIKES</div><div class="v">'+num(likes)+'</div></div>'
-    +'<div class="n-metric gain"><div class="l">GAIN</div><div class="v">+'+num(a.gained_exp||0)+'</div></div>'
+    +'<div class="n-metric gain"><div class="l">EXP</div><div class="v">+'+num(a.current_exp||0)+'</div></div>'
     +'</div>'
     +'<div class="lvl-hdr">'
     +'<div class="lvl-badges">'
@@ -2325,8 +2332,8 @@ function nodeHTML(a){
     +'<div class="lvl-marker" style="left:calc('+pct.toFixed(1)+'% - 2px)"></div>'
     +'</div>'
     +'<div class="node-prog-foot">'
-    +'<span><span class="earned">'+num(earned)+'</span> <span class="needed">/ '+num(needed)+'</span></span>'
-    +'<span class="left-lbl">'+num(remain)+' LEFT</span>'
+    +'<span class="pf-left"><span class="earned">'+num(earned)+'</span> <span class="needed">/ '+num(needed)+'</span></span>'
+    +'<span class="pf-right"><span class="left-lbl">'+num(remain)+' LEFT</span></span>'
     +'</div>'
     +'<div class="nf-actions">'
     +'<button class="nf-btn br'+(isBR?' on':'')+'" data-action="mode" data-uid="'+esc(uid)+'" data-mode="BR"><i class="fa-solid fa-parachute-box"></i> BR</button>'
