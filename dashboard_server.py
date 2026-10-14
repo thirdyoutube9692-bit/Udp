@@ -115,7 +115,8 @@ class BotState:
                 "guest_uid": str(guest_uid) if guest_uid else uid_str,
                 "password": password or "",
                 "nickname": nickname or f"Player_{uid_str[:6]}",
-                "region": region or "IND",
+                "region": str(region or "IND").upper(),
+                "clan_name": "",
                 "level": lvl_val,
                 "initial_exp": exp, "current_exp": exp, "gained_exp": 0,
                 "likes": likes or 0,
@@ -139,7 +140,7 @@ class BotState:
             if password:
                 acc["password"] = password
             if nickname: acc["nickname"] = nickname
-            if region: acc["region"] = "IND"
+            if region: acc["region"] = str(region).upper()
             if level: acc["level"] = lvl_val
             acc["current_exp"] = exp
             acc["gained_exp"] = max(0, exp - acc["initial_exp"])
@@ -904,6 +905,22 @@ async def handle_banner_info(request):
         return web.json_response({"status": "error", "error": "no profile"}, status=502)
     extracted = extract_fields(info)
     basic_dump = str(info.basic_info) if info.HasField("basic_info") else None
+
+    # Enrich bot_state — JS /api/stats next poll will see updates
+    try:
+        if uid in bot_state.accounts:
+            acc = bot_state.accounts[uid]
+            if extracted.get("region"):
+                acc["region"] = str(extracted["region"]).upper()
+            if extracted.get("clan_name"):
+                acc["clan_name"] = extracted["clan_name"]
+            if extracted.get("likes"):
+                acc["likes"] = int(extracted["likes"])
+            if extracted.get("level"):
+                acc["level"] = int(extracted["level"])
+    except Exception:
+        pass
+
     return web.json_response({
         "status": "ok",
         "uid": uid,

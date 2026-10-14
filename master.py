@@ -432,6 +432,29 @@ def get_proto_field(d, key, default=None):
     return default
 
 
+
+
+# ==================== JWT REGION DECODER ====================
+def _decode_jwt_region(jwt_str) -> str:
+    """Extract region claim from majorservice JWT. Fallback: IND."""
+    try:
+        import base64 as _b64, json as _json
+        parts = str(jwt_str).split(".")
+        if len(parts) < 2:
+            return "IND"
+        b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+        payload = _json.loads(_b64.urlsafe_b64decode(b64))
+        for k in ("region", "reg", "r", "country", "country_code"):
+            v = payload.get(k)
+            if v:
+                s = str(v).upper().strip()
+                if 1 <= len(s) <= 8 and s.isalpha():
+                    return s
+    except Exception:
+        pass
+    return "IND"
+
+
 # ==================== MATCH COUNTERS ====================
 _match_counters: Dict[str, int] = {}
 _match_counter_lock = asyncio.Lock()
@@ -1954,7 +1977,7 @@ async def _process_account_uid_pass(uid: str, password: str) -> Optional[Dict]:
         exp = int(get_proto_field(dict_res, 7, 0))
         likes = int(get_proto_field(dict_res, 8, 0))
         nickname = res_proto.nickname or get_proto_field(dict_res, 4, f"Player_{acc_id}")
-        region = "IND"
+        region = _decode_jwt_region(majorlogin_response.token)
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region,
                                    level=level, exp=exp, likes=likes,
@@ -2056,7 +2079,7 @@ async def _process_account_token(access_token: str) -> Optional[Dict]:
         exp = int(get_proto_field(dict_res, 7, 0))
         likes = int(get_proto_field(dict_res, 8, 0))
         nickname = res_proto.nickname or get_proto_field(dict_res, 4, f"Player_{acc_id}")
-        region = "IND"
+        region = _decode_jwt_region(majorlogin_response.token)
 
         bot_state.register_account(uid=acc_id, nickname=nickname, region=region,
                                    level=level, exp=exp, likes=likes,

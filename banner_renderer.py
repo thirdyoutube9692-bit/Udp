@@ -195,7 +195,9 @@ def extract_fields(info: AccountPersonalShowInfo) -> dict:
         return out
     b = info.basic_info
     if b.nickname:  out["nickname"]  = b.nickname
+    if b.region:    out["region"]    = b.region.upper()
     if b.level:     out["level"]     = b.level
+    if b.liked:     out["likes"]     = b.liked
     if b.head_pic:  out["avatar_id"] = b.head_pic
     if b.banner_id: out["banner_id"] = b.banner_id
     if b.pin_id:    out["pin_id"]    = b.pin_id
