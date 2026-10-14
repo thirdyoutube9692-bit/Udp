@@ -1360,6 +1360,38 @@ body::after{
 .nodes-table .act-btn{width:26px;height:26px;border:1px solid var(--line);background:transparent;color:var(--text2);cursor:pointer;border-radius:4px;font-size:10px;margin:0 1px;transition:.2s}
 .nodes-table .act-btn:hover{color:var(--neon);border-color:var(--neon)}
 .nodes-table .act-btn.del:hover{color:var(--err);border-color:var(--err)}
+
+/* ═══ Podium v2 — region + likes ═══ */
+.pod .pod-row2{display:flex;align-items:center;justify-content:center;gap:6px;
+  margin-top:6px;flex-wrap:wrap}
+.pod .pod-region{padding:3px 8px;border-radius:4px;
+  font-family:'Orbitron';font-size:9px;font-weight:900;letter-spacing:1px;
+  background:linear-gradient(180deg,#7a8896,#4a5666);color:#fff;
+  border:1px solid rgba(255,255,255,.25);
+  box-shadow:0 2px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.2)}
+.pod .pod-region[data-region="IND"]{background:linear-gradient(180deg,#ffb020,#e07a00);
+  border-color:#ffcc55;color:#1a0a00;
+  box-shadow:0 0 12px rgba(255,176,32,.6),inset 0 1px 0 rgba(255,255,255,.3)}
+.pod .pod-region[data-region="BD"]{background:linear-gradient(180deg,#00e5ff,#0088cc);
+  border-color:#55f0ff;color:#001a22;
+  box-shadow:0 0 12px rgba(0,229,255,.6),inset 0 1px 0 rgba(255,255,255,.3)}
+.pod .pod-region[data-region="PK"]{background:linear-gradient(180deg,#00d97a,#009955);
+  border-color:#55ffaa;color:#002210}
+.pod .pod-region[data-region="ID"]{background:linear-gradient(180deg,#ff0066,#cc0044);
+  border-color:#ff55aa;color:#fff}
+.pod .pod-region[data-region="TH"]{background:linear-gradient(180deg,#ffcc00,#cc9900);
+  border-color:#ffe055;color:#1a1200}
+
+.pod .pod-likes{display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:4px;
+  font-family:'JetBrains Mono';font-size:10px;font-weight:700;
+  color:#ff7eb6;background:rgba(255,0,170,.1);
+  border:1px solid rgba(255,0,170,.4);
+  text-shadow:0 0 6px rgba(255,0,170,.6)}
+.pod .pod-likes i{font-size:9px;color:#ff4da6}
+
+.pod.p1 .pod-region[data-region="IND"],
+.pod.p1 .pod-likes{filter:brightness(1.15)}
 </style>
 </head>
 <body>
@@ -2202,11 +2234,18 @@ function renderPodium(){
     var completed=a.matches_completed||0;
     var rate=played>0?Math.round(completed/played*100):0;
     var lvl=parseInt(a.level)||1;
+    var region=(a.region||'IND').toUpperCase();
+    var likes=a.likes||0;
+
+    var regionHTML = '<span class="pod-region" data-region="'+esc(region)+'">'+esc(region)+'</span>';
+    var likesHTML = likes ? '<span class="pod-likes"><i class="fa-solid fa-heart"></i>'+num(likes)+'</span>' : '';
+
     return '<div class="pod '+cls[i]+'">'
       +'<div class="medal">'+medals[i]+'</div>'
       +'<div class="pn">'+esc(a.nickname||'Unknown')+'</div>'
       +'<div class="pu">'+esc(String(a.uid))+'</div>'
       +'<div class="pe">+'+num(a.gained_exp||0)+'</div>'
+      +'<div class="pod-row2">'+regionHTML+likesHTML+'</div>'
       +'<div class="pod-mini">'
       +'<div class="pod-mini-stat"><div class="l">LVL</div><div class="v">'+lvl+'</div></div>'
       +'<div class="pod-mini-stat"><div class="l">MATCH</div><div class="v">'+completed+'</div></div>'
@@ -2214,6 +2253,17 @@ function renderPodium(){
       +'</div>'
       +'</div>';
   }).join('');
+
+  // apply region hint (JWT expiry) if pool loaded
+  if (window._REGION_POOL && Object.keys(window._REGION_POOL).length) {
+    document.querySelectorAll('.pod-region').forEach(function(el){
+      var reg = (el.getAttribute('data-region')||'').toUpperCase();
+      var info = window._REGION_POOL[reg];
+      if (info && info.expires_in && info.expires_in !== '—') {
+        el.textContent = reg + ' · ' + info.expires_in;
+      }
+    });
+  }
 }
 
 // ============================================================
