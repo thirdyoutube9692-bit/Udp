@@ -2257,7 +2257,7 @@ function applyStats(d){
     var lvl=parseInt(a.level)||1;
     if(S.lastLevels[uid]&&lvl>S.lastLevels[uid]){
       confetti();playLevelUpSound();
-      toast('▲ NODE '+(a.nickname||uid)+' REACHED LV.'+lvl,'hero');
+      if (typeof showPremiumLevelUp === 'function') showPremiumLevelUp(uid, a.nickname, lvl); else toast('▲ '+(a.nickname||uid)+' LV.'+lvl,'hero');
       if(S.settings.notif)sendNotification('👑 Level Up','Node '+(a.nickname||uid)+' reached level '+lvl,'lvlup');
     }
     S.lastLevels[uid]=lvl;
@@ -3915,6 +3915,139 @@ function downloadBanner(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 window.openBanner=openBanner;
+
+// ═══ PREMIUM SOUNDS v3 ═══
+window._audioCtx = null;
+function _actx() {
+  if (!window._audioCtx) { try { window._audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+  return window._audioCtx;
+}
+function playTone(freq, dur, type, vol) {
+  if (!S || !S.settings || S.settings.sound === false) return;
+  var ctx = _actx(); if (!ctx) return;
+  try {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    o.connect(g); g.connect(ctx.destination);
+    var v = vol || 0.08;
+    g.gain.setValueAtTime(v, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    o.start(); o.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+window.playLevelUpSound = function() {
+  var pack = (S && S.settings && S.settings.soundPack) || 'classic';
+  if (pack === 'none') return;
+  var seq;
+  if (pack === 'arcade') seq = [[800,.08,'square'],[1000,.08,'square'],[1200,.08,'square'],[1600,.2,'square']];
+  else if (pack === 'cinematic') seq = [[220,.4,'sine'],[330,.4,'sine'],[440,.6,'sine'],[660,.8,'sine']];
+  else if (pack === 'epic') seq = [[392,.15,'triangle'],[523,.15,'triangle'],[659,.2,'triangle'],[784,.4,'triangle'],[1046,.5,'triangle']];
+  else if (pack === 'retro') seq = [[523,.06,'square'],[1046,.12,'square']];
+  else seq = [[523,.15,'triangle'],[659,.15,'triangle'],[784,.3,'triangle']];
+  var t = 0;
+  seq.forEach(function(s){ setTimeout(function(){ playTone(s[0], s[1], s[2]); }, t); t += s[1]*900; });
+};
+
+// ═══ PREMIUM LEVEL-UP NOTIFICATION ═══
+window.showPremiumLevelUp = function(uid, nickname, newLevel) {
+  if (S && S.settings && S.settings.premium === false) {
+    if (typeof toast === 'function') toast('▲ ' + (nickname||uid) + ' → LV.' + newLevel, 'hero');
+    return;
+  }
+  var root = document.getElementById('premiumNotifRoot');
+  if (!root) return;
+  root.innerHTML = '';
+  var el = document.createElement('div');
+  el.className = 'premium-notif';
+  el.innerHTML = '<div class="pn-crown">👑</div>'
+    + '<div class="pn-body">'
+    + '<div class="pn-lbl">◆ CONGRATULATIONS ◆</div>'
+    + '<div class="pn-title">' + esc(nickname || uid) + ' → LV.' + newLevel + '</div>'
+    + '<div class="pn-desc">Level up achieved · ' + esc(uid) + '</div></div>';
+  root.appendChild(el);
+  setTimeout(function(){ el.classList.add('on'); }, 30);
+  setTimeout(function(){ el.classList.remove('on'); setTimeout(function(){ el.remove(); }, 500); }, 5000);
+  if (typeof confetti === 'function') confetti();
+  if (typeof playLevelUpSound === 'function') playLevelUpSound();
+  if (S && S.settings && S.settings.notif && typeof sendNotification === 'function') {
+    sendNotification('👑 Level Up', (nickname||uid) + ' reached level ' + newLevel, 'lvlup');
+  }
+};
+
+// ═══ SETTINGS v2 INIT ═══
+window.initSettingsV2 = function() {
+  document.querySelectorAll('#themePicker .theme-opt').forEach(function(el){
+    el.onclick = function(){
+      var th = el.dataset.th;
+      document.querySelectorAll('#themePicker .theme-opt').forEach(function(x){ x.classList.toggle('on', x === el); });
+      document.documentElement.setAttribute('data-theme', th);
+      try { localStorage.setItem('raja_theme', th); } catch(e){}
+      if (typeof applyExtraTheme === 'function') applyExtraTheme(th);
+    };
+  });
+  document.querySelectorAll('#fontPicker button').forEach(function(el){
+    el.onclick = function(){
+      document.querySelectorAll('#fontPicker button').forEach(function(x){ x.classList.toggle('on', x === el); });
+      var f = el.dataset.font;
+      var map = { orbitron: "'Orbitron',sans-serif", rajdhani: "'Rajdhani',sans-serif", jetbrains: "'JetBrains Mono',monospace", default: "inherit" };
+      document.body.style.fontFamily = map[f] || 'inherit';
+      try { localStorage.setItem('raja_font', f); } catch(e){}
+    };
+  });
+  document.querySelectorAll('#soundBoard .sound-opt').forEach(function(el){
+    el.onclick = function(e){
+      if (e.target.closest('.so-preview')) return;
+      var snd = el.dataset.snd;
+      document.querySelectorAll('#soundBoard .sound-opt').forEach(function(x){ x.classList.toggle('on', x === el); });
+      if (!S.settings) S.settings = {};
+      S.settings.soundPack = snd;
+      try { localStorage.setItem('raja_soundpack', snd); } catch(e){}
+      if (snd !== 'none') playLevelUpSound();
+    };
+  });
+  document.querySelectorAll('#soundBoard .so-preview').forEach(function(btn){
+    btn.onclick = function(e){
+      e.stopPropagation();
+      var pk = btn.dataset.preview;
+      if (!S.settings) S.settings = {};
+      var old = S.settings.soundPack; S.settings.soundPack = pk;
+      playLevelUpSound();
+      S.settings.soundPack = old;
+    };
+  });
+  var oS = document.getElementById('optSound'); if (oS) oS.onchange = function(){ S.settings.sound = oS.checked; };
+  var oN = document.getElementById('optNotif'); if (oN) oN.onchange = function(){
+    if (oN.checked) { if (Notification.permission === 'granted') { S.settings.notif = true; } else Notification.requestPermission().then(function(p){ S.settings.notif = (p === 'granted'); if (!S.settings.notif) oN.checked = false; }); }
+    else S.settings.notif = false;
+  };
+  var oP = document.getElementById('optPremium'); if (oP) oP.onchange = function(){ S.settings.premium = oP.checked; };
+  var oR = document.getElementById('optRefresh'); if (oR) oR.onchange = function(){
+    S.settings.refresh = parseInt(oR.value) || 5;
+    if (window._statsInterval) clearInterval(window._statsInterval);
+    window._statsInterval = setInterval(fetchStats, S.settings.refresh * 1000);
+  };
+  var cl = document.getElementById('clearLocal'); if (cl) cl.onclick = function(){ if (confirm('Reset local data?')) { localStorage.clear(); location.reload(); } };
+
+  // restore
+  try {
+    var th = localStorage.getItem('raja_theme');
+    if (th) { var el = document.querySelector('#themePicker .theme-opt[data-th="'+th+'"]'); if (el) el.click(); }
+    var fo = localStorage.getItem('raja_font');
+    if (fo) { var b = document.querySelector('#fontPicker button[data-font="'+fo+'"]'); if (b) b.click(); }
+    var sp = localStorage.getItem('raja_soundpack');
+    if (sp) { var s2 = document.querySelector('#soundBoard .sound-opt[data-snd="'+sp+'"]'); if (s2) s2.click(); }
+  } catch(e) {}
+};
+
+// Hook settings open
+if (typeof openSettings === 'function' && !window._settingsV2Hooked) {
+  var _o = openSettings;
+  window.openSettings = function(){ _o.apply(null, arguments); setTimeout(initSettingsV2, 80); };
+  window._settingsV2Hooked = true;
+}
+window.addEventListener('load', function(){ setTimeout(initSettingsV2, 1000); });
+
 
 // ═══ LAZY BANNER LOADER ═══
 window._BANNER_SEEN = {};   // uid -> loaded flag (memory)
