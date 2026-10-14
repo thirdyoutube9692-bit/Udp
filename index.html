@@ -1559,12 +1559,12 @@ body::after{
       <button class="hud-icon" id="cmdkBtn" title="Command Palette (Ctrl+K)"><i class="fa-solid fa-magnifying-glass"></i></button>
       <button class="hud-icon settings" id="settingsBtn" title="Settings (Ctrl+,)"><i class="fa-solid fa-sliders"></i></button>
       <button class="hud-icon" id="downloadDbBtn" title="Download accounts_db.json"><i class="fa-solid fa-database"></i></button>
-      <button class="hud-icon" id="restoreDbBtn" title="Restore accounts from DB backup"><i class="fa-solid fa-upload"></i></button>
+      <button class="hud-icon" id="restoreDbBtn" title="Restore accounts from DB backup" onclick="window.restoreDbPrompt&&window.restoreDbPrompt();return false;"><i class="fa-solid fa-upload"></i></button>
       <button class="hud-icon" id="refreshBtn" title="Refresh (Ctrl+R)"><i class="fa-solid fa-rotate"></i></button>
       <button class="hud-icon" id="logoutBtn" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
       <button class="hud-btn danger" id="removeAllBtn" title="Clear all accounts + logs"><i class="fa-solid fa-broom"></i><span>Clear All</span></button>
       <button class="hud-btn stop-all" id="masterStopBtn" title="STOP ALL processes"><i class="fa-solid fa-power-off"></i><span id="masterStopLabel">STOP ALL</span></button>
-      <button class="hud-btn" id="addBtn"><i class="fa-solid fa-plus"></i><span>Add Node</span></button>
+      <button class="hud-btn" id="addBtn" onclick="if(window.openAdd){window.openAdd();}else{alert('openAdd not loaded');}return false;"><i class="fa-solid fa-plus"></i><span>Add Node</span></button>
     </div>
   </nav>
 
@@ -4291,6 +4291,54 @@ window.addEventListener('load', function(){
 // Live banner + fields auto-loader
 
 window.closeBanner=closeBanner;
+
+// ═══ BULLETPROOF NAV HANDLERS ═══
+window.restoreDbPrompt = function() {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,application/json';
+  inp.onchange = function() {
+    var f = inp.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = async function(ev) {
+      try {
+        var data = JSON.parse(ev.target.result);
+        var r = await fetch('/api/accounts/import_db', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(data)
+        });
+        var j = await r.json();
+        if (j.status === 'ok') {
+          alert('RESTORED: ' + j.imported + ' accounts, ' + j.started + ' starting');
+          setTimeout(function(){ location.reload(); }, 1500);
+        } else {
+          alert('RESTORE FAILED: ' + (j.error||'?'));
+        }
+      } catch(err) { alert('INVALID FILE: ' + err); }
+    };
+    rd.readAsText(f);
+  };
+  inp.click();
+};
+
+// Capture-phase fallback — guarantees click works even if addEventListener missed
+document.addEventListener('click', function(e){
+  var el = e.target.closest('#addBtn');
+  if (el) {
+    if (typeof openAdd === 'function') {
+      var m = document.getElementById('addModal');
+      if (!m || !m.classList.contains('on')) openAdd();
+    }
+    return;
+  }
+  var el2 = e.target.closest('#restoreDbBtn');
+  if (el2) {
+    window.restoreDbPrompt();
+    return;
+  }
+}, true);
+
 
 // ═══ Expose inline-handler functions to global scope ═══
 window.closeZoom = closeZoom;
