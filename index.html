@@ -1756,12 +1756,8 @@ body::after{
 (function(){
 'use strict';
 
-var _BANNER_URL = {};
-var _FIELDS_CACHE = {};
-var _FIELDS_TTL = 60000;
 
 
-// caches for banner/fields (declared early so nodeHTML can reference them safely)
 // ============================================================
 // CONFIG & STATE
 // ============================================================
@@ -2294,8 +2290,8 @@ function nodeHTML(a){
   var likes=a.likes||0;
 
   return '<div class="node'+pinnedCls+stoppedCls+(paused?' paused':'')+(isSel?' selected':'')+'" data-uid="'+esc(uid)+'">'
-    +'<div class="node-banner '+(_BANNER_URL[uid]?'':'loading')+'" data-banner-uid="'+esc(uid)+'">'
-    +'<img loading="lazy" src="'+(_BANNER_URL[uid] || '')+'" '
+    +'<div class="node-banner loading" data-banner-uid="'+esc(uid)+'">'
+    +'<img loading="lazy" src="/api/banner/'+encodeURIComponent(uid)+'.png" '
     +'onload="this.parentNode.classList.remove(\'loading\')" '
     +'onerror="this.parentNode.classList.add(\'fail\')" alt="banner"/>'
     +'</div>'
@@ -3642,42 +3638,7 @@ function downloadBanner(){
 window.openBanner=openBanner;
 
 // Live banner + fields auto-loader
-async function loadNodeBanner(uid) {
-  var box = document.querySelector('.node-banner[data-banner-uid="'+uid+'"]');
-  if (!box) return;
-  var img = box.querySelector('img');
-  if (!img) return;
-  img.src = '/api/banner/' + encodeURIComponent(uid) + '.png?t=' + Date.now();
-}
-async function loadNodeFields(uid) {
-  try {
-    var r = await fetch('/api/banner_info/' + encodeURIComponent(uid));
-    if (!r.ok) return;
-    var j = await r.json();
-    var f = j.fields || {};
-    var region = (f.region || 'IND').toUpperCase();
-    var node = document.querySelector('.node[data-uid="'+uid+'"]');
-    if (!node) return;
-    var pill = node.querySelector('.region-pill');
-    if (pill) { pill.setAttribute('data-region', region); pill.textContent = region;
-      pill.classList.remove('pulse'); void pill.offsetWidth; pill.classList.add('pulse'); }
-    if (f.likes) {
-      var likesEl = node.querySelectorAll('.n-metric .v')[1];
-      if (likesEl) likesEl.textContent = Number(f.likes).toLocaleString();
-    }
-  } catch(e) {}
-}
-var _origRenderNodes = renderNodes;
-renderNodes = function(force){
-  _origRenderNodes(force);
-  setTimeout(function(){
-    S.accounts.forEach(function(a){
-      var uid = String(a.uid);
-      loadNodeBanner(uid);
-      loadNodeFields(uid);
-    });
-  }, 150);
-};
+
 window.closeBanner=closeBanner;
 
 })();

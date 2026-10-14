@@ -877,7 +877,7 @@ async def handle_banner(request):
         bot_state.log(f"Banner render failed for {uid}: {e}", "error", uid)
         return web.json_response({"status": "error", "error": str(e)}, status=500)
     return web.Response(body=png, content_type="image/png",
-                        headers={"Cache-Control": "no-store"})
+                        headers={"Cache-Control": "public, max-age=300"})
 
 
 async def handle_banner_info(request):
